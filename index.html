@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SISB Economics</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">  
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Lato',sans-serif;background:#f0f4f8;min-height:100vh;color:#1a1a2e}
+
+.header{background:linear-gradient(135deg,#002F6C 0%,#008BCC 100%);color:#fff;padding:18px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,47,108,.3);position:sticky;top:0;z-index:100}
+.header-logo{width:44px;height:44px;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#002F6C;flex-shrink:0}
+.header-text h1{font-size:20px;font-weight:900;letter-spacing:.5px}
+.header-text p{font-size:12px;font-weight:300;opacity:.85;margin-top:1px}
+
+.student-bar{background:#fff;border-bottom:2px solid #e0edf6;padding:10px 16px;display:none;align-items:center;gap:8px;flex-wrap:wrap}
+.student-bar.visible{display:flex}
+.student-chip{background:#e0edf6;color:#002F6C;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.student-chip.green{background:#e6f9ee;color:#1a6b35}
+.change-btn{font-size:12px;color:#008BCC;cursor:pointer;text-decoration:underline;font-weight:700;margin-left:auto;background:none;border:none;font-family:'Lato',sans-serif}
+
+.screen{display:none;max-width:800px;margin:0 auto;padding:24px 16px}
+.screen.active{display:block}
+
+.card{background:#fff;border-radius:14px;padding:28px;box-shadow:0 2px 16px rgba(0,47,108,.08);margin-bottom:20px}
+.card h2{font-size:20px;font-weight:900;color:#002F6C;margin-bottom:6px}
+.card .subtitle{font-size:13px;color:#5a6a7a;margin-bottom:22px}
+
+.form-group{margin-bottom:18px}
+label{display:block;font-size:13px;font-weight:700;color:#002F6C;margin-bottom:6px;letter-spacing:.3px}
+select{width:100%;padding:11px 14px;border:2px solid #dde3ea;border-radius:9px;font-family:'Lato',sans-serif;font-size:14px;color:#1a1a2e;transition:border-color .2s;background:#fff;-webkit-appearance:none}
+select:focus{outline:none;border-color:#008BCC}
+select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
+
+.step-indicator{display:flex;gap:6px;margin-bottom:24px}
+.step{flex:1;height:4px;border-radius:4px;background:#e0edf6;transition:background .3s}
+.step.done{background:#008BCC}
+.step.active{background:#83E3DE}
+
+.confirm-box{background:#f0f8ff;border:2px solid #c8e6f7;border-radius:10px;padding:16px;margin-bottom:20px}
+.confirm-box h3{font-size:13px;font-weight:900;color:#002F6C;margin-bottom:10px}
+.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #ddeef8;font-size:13px}
+.confirm-row:last-child{border-bottom:none;padding-bottom:0}
+.confirm-label{color:#5a6a7a;font-weight:700}
+.confirm-value{color:#002F6C;font-weight:700}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:9px;font-family:'Lato',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,#008BCC,#0073aa);color:#fff;box-shadow:0 3px 12px rgba(0,139,204,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(0,139,204,.4)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-secondary{background:#f0f4f8;color:#002F6C;border:2px solid #dde3ea}
+.btn-secondary:hover{background:#e2eaf2;border-color:#008BCC}
+.btn-full{width:100%}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap}
+
+.topic-section{margin-bottom:8px}
+.topic-header{background:linear-gradient(135deg,#002F6C,#003d8a);color:#fff;padding:12px 16px;border-radius:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;user-select:none}
+.topic-header:hover{opacity:.9}
+.topic-arrow{transition:transform .2s}
+.topic-header.open .topic-arrow{transform:rotate(90deg)}
+.topic-quizzes{display:none;padding:8px 0 4px}
+.topic-quizzes.open{display:block}
+.quiz-item{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-radius:9px;margin-bottom:6px;background:#f7fafd;border:2px solid #e8eef5;cursor:pointer;transition:all .2s}
+.quiz-item:hover{border-color:#008BCC;background:#eef6fc}
+.quiz-item-title{font-size:13px;font-weight:700;color:#002F6C}
+.quiz-item-badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:700}
+.badge-done{color:#37C563;background:#e6f9ee}
+.badge-new{color:#7a8fa0;background:#e0edf6}
+
+.video-wrap{position:relative;padding-bottom:56.25%;height:0;border-radius:11px;overflow:hidden;margin-bottom:20px;background:#000}
+.video-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%}
+.quiz-video{margin-bottom:20px}
+.quiz-video .video-wrap{margin-bottom:0}
+.quiz-video-title{font-size:13px;font-weight:900;color:#002F6C;margin-bottom:8px}
+.quiz-meta{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.badge{padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.badge-blue{background:#e0edf6;color:#008BCC}
+.badge-teal{background:#e0f7f6;color:#1a7a76}
+
+.progress-bar-wrap{background:#e8eef5;border-radius:20px;height:7px;margin-bottom:20px;overflow:hidden}
+.progress-bar{height:100%;background:linear-gradient(90deg,#008BCC,#83E3DE);border-radius:20px;transition:width .4s}
+.question-num{font-size:12px;color:#7a8fa0;font-weight:700;margin-bottom:8px}
+.question-text{font-size:16px;font-weight:700;color:#002F6C;margin-bottom:20px;line-height:1.5}
+.options{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+.option{padding:13px 16px;border:2px solid #dde3ea;border-radius:10px;cursor:pointer;font-size:14px;color:#1a1a2e;transition:all .2s;display:flex;align-items:center;gap:12px;background:#fff}
+.option:hover:not(.disabled){border-color:#008BCC;background:#eef6fc}
+.option.correct{border-color:#37C563;background:#e6f9ee;color:#1a6b35;font-weight:700}
+.option.wrong{border-color:#FF801D;background:#fff3ec;color:#a04000}
+.option.disabled{cursor:default}
+.option-letter{width:28px;height:28px;border-radius:50%;background:#f0f4f8;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#002F6C;flex-shrink:0;border:2px solid #dde3ea;transition:all .2s}
+.option.correct .option-letter{background:#37C563;color:#fff;border-color:#37C563}
+.option.wrong .option-letter{background:#FF801D;color:#fff;border-color:#FF801D}
+.explanation{background:#f0f4f8;border-left:4px solid #008BCC;padding:14px 16px;border-radius:0 9px 9px 0;font-size:13px;color:#3a4a5a;margin-bottom:20px;line-height:1.6}
+.explanation strong{color:#002F6C}
+
+.score-circle{width:120px;height:120px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 20px;border:6px solid #008BCC;background:linear-gradient(135deg,#002F6C,#008BCC)}
+.score-num{font-size:36px;font-weight:900;color:#fff}
+.score-label{font-size:11px;color:rgba(255,255,255,.8);font-weight:700}
+.result-title{text-align:center;font-size:20px;font-weight:900;color:#002F6C;margin-bottom:6px}
+.result-sub{text-align:center;font-size:13px;color:#5a6a7a;margin-bottom:24px}
+.review-item{border:2px solid #e8eef5;border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.review-item.correct-q{border-color:#37C563}
+.review-item.wrong-q{border-color:#FF801D}
+.review-q{font-size:13px;font-weight:700;color:#002F6C;margin-bottom:8px}
+.review-ans{font-size:12px;margin-bottom:4px;font-weight:700}
+.review-ans.correct{color:#37C563}
+.review-ans.wrong{color:#FF801D}
+.review-exp{font-size:12px;color:#5a6a7a;margin-top:8px;padding-top:8px;border-top:1px solid #e8eef5;line-height:1.5}
+
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 0;gap:16px}
+.spinner{width:36px;height:36px;border:4px solid #e0edf6;border-top-color:#008BCC;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{color:#5a6a7a;font-size:14px;font-weight:700}
+.error-box{background:#fff3ec;border:2px solid #FF801D;border-radius:10px;padding:14px 16px;color:#a04000;font-size:13px;font-weight:700;text-align:center;margin-top:8px}
+
+.toast{position:fixed;bottom:24px;right:24px;background:#002F6C;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">SISB</div>
+  <div class="header-text">
+    <h1>SISB Economics</h1>
+    <p>Spirit of Excellence – IGCSE &amp; A Level</p>
+  </div>
+</div>
+
+<div class="student-bar" id="studentBar">
+  <span class="student-chip" id="barNickname"></span>
+  <span class="student-chip" id="barCampus"></span>
+  <span class="student-chip" id="barClass"></span>
+  <span class="student-chip green" id="barYear"></span>
+  <button class="change-btn" onclick="goHome()">✏️ Change student</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══ SCREEN 1: Login ═══ -->
+<div class="screen active" id="screenLogin">
+  <div class="card">
+    <h2>Welcome to SISB Economics</h2>
+    <p class="subtitle">Select your campus, year group and class to find your name.</p>
+
+    <div class="step-indicator">
+      <div class="step active" id="step1"></div>
+      <div class="step" id="step2"></div>
+      <div class="step" id="step3"></div>
+      <div class="step" id="step4"></div>
+    </div>
+
+    <!-- Step 1: Campus -->
+    <div class="form-group">
+      <label>1. Campus</label>
+      <select id="selCampus" onchange="onCampusChange()">
+        <option value="">— Select your campus —</option>
+        <option value="NR">NR – Nonthaburi</option>
+        <option value="PU">PU – Pracha Uthit</option>
+        <option value="TR">TR – Thonburi</option>
+        <option value="CM">CM – Chiang Mai</option>
+      </select>
+    </div>
+
+    <!-- Step 2: Year Group -->
+    <div class="form-group">
+      <label>2. Year Group</label>
+      <select id="selYear" onchange="onYearChange()" disabled>
+        <option value="">— Select your campus first —</option>
+      </select>
+    </div>
+
+    <!-- Step 3: Class -->
+    <div class="form-group">
+      <label>3. Class</label>
+      <select id="selClass" onchange="onClassChange()" disabled>
+        <option value="">— Select your year group first —</option>
+      </select>
+    </div>
+
+    <!-- Step 4: Name -->
+    <div class="form-group">
+      <label>4. Your Name</label>
+      <select id="selStudent" onchange="onStudentChange()" disabled>
+        <option value="">— Select your class first —</option>
+      </select>
+    </div>
+
+    <div id="loginLoading" style="display:none">
+      <div class="loading"><div class="spinner"></div><p>Loading student list…</p></div>
+    </div>
+    <div id="loginError" style="display:none" class="error-box"></div>
+
+    <!-- Confirm -->
+    <div id="confirmBox" style="display:none">
+      <div class="confirm-box">
+        <h3>✓ Confirm your details</h3>
+        <div class="confirm-row"><span class="confirm-label">Full Name</span><span class="confirm-value" id="cfFullName"></span></div>
+        <div class="confirm-row"><span class="confirm-label">Nickname</span><span class="confirm-value" id="cfNickname"></span></div>
+        <div class="confirm-row"><span class="confirm-label">Email</span><span class="confirm-value" id="cfEmail"></span></div>
+        <div class="confirm-row"><span class="confirm-label">Campus</span><span class="confirm-value" id="cfCampus"></span></div>
+        <div class="confirm-row"><span class="confirm-label">Class</span><span class="confirm-value" id="cfClass"></span></div>
+        <div class="confirm-row"><span class="confirm-label">Year Group</span><span class="confirm-value" id="cfYear"></span></div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="confirmLogin()">That's me — Start Learning →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 2: Catalogue ═══ -->
+<div class="screen" id="screenCatalogue">
+  <div class="card">
+    <h2 id="catTitle"></h2>
+    <p class="subtitle" id="catSub">Choose a topic, watch the video, then complete the quiz.</p>
+    <div id="catalogueList">
+      <div class="loading"><div class="spinner"></div><p>Loading quizzes…</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 3: Video ═══ -->
+<div class="screen" id="screenVideo">
+  <div class="card">
+    <div class="quiz-meta">
+      <span class="badge badge-blue" id="vTopicBadge"></span>
+      <span class="badge badge-teal" id="vQuizId"></span>
+    </div>
+    <h2 id="vTitle"></h2>
+    <p class="subtitle">Watch the video, then start the quiz when you're ready.</p>
+    <div class="video-wrap">
+      <iframe id="ytPlayer" src="" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="showScreen('screenCatalogue')">← Back</button>
+      <button class="btn btn-primary" id="startQuizBtn" onclick="startQuiz()" disabled>Loading questions…</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 4: Quiz ═══ -->
+<div class="screen" id="screenQuiz">
+  <div class="card">
+    <div class="quiz-video">
+      <div class="quiz-video-title">Need to check the video again?</div>
+      <div class="video-wrap">
+        <iframe id="ytPlayerQuiz" src="" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="question-num" id="questionNum"></div>
+    <div class="question-text" id="questionText"></div>
+    <div class="options" id="optionsContainer"></div>
+    <div class="explanation" id="explanationBox" style="display:none"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" style="display:none">Next Question →</button>
+      <button class="btn btn-primary" id="finishBtn" onclick="finishQuiz()" style="display:none">See Results →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 5: Results ═══ -->
+<div class="screen" id="screenResults">
+  <div class="card">
+    <div class="score-circle">
+      <span class="score-num" id="scoreNum"></span>
+      <span class="score-label">SCORE</span>
+    </div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-sub" id="resultSub"></div>
+    <div class="btn-row" style="justify-content:center;margin-bottom:24px">
+      <button class="btn btn-secondary" onclick="retakeQuiz()">↺ Retake Quiz</button>
+      <button class="btn btn-primary" onclick="showScreen('screenCatalogue')">← All Quizzes</button>
+    </div>
+    <h3 style="font-size:15px;font-weight:900;color:#002F6C;margin-bottom:14px">Review Your Answers</h3>
+    <div id="reviewContainer"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG — update these values after setting up your sheets
+// ═══════════════════════════════════════════════════════
+const RESPONSE_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwd_lpy7Rj_ltrhuai1SktAXT-KjFFUBIbby26f3_tZiCA_Ksd5fRTp4ncM5Xdl_EPQTQ/exec';
+
+// Student sheet — one fetch per campus using tab name
+const STUDENTS_SHEET_ID = '15EL9ao5GoMLYqmIPgNYxM_sO_eYS0XIkrPgphk2KaWo';
+const CAMPUS_TAB = {
+  NR: 'NR_Students',
+  PU: 'PU_Students',
+  TR: 'TR_Students',
+  CM: 'CM_Students'
+};
+
+const CATALOGUE_CSV = 'https://docs.google.com/spreadsheets/d/1M6QJOgDr5BYtsxpxLA-u1_RYRCugzlINQOUrVsTin-o/export?format=csv&gid=0';
+
+// ═══════════════════════════════════════════════════════
+// YEAR GROUPS & CLASSES
+// ═══════════════════════════════════════════════════════
+const YEAR_GROUPS = [
+  { label: 'IGCSE Year 1',  course: 'IGCSE Economics',  classes: ['G9B','G9G','G9M','G9S'] },
+  { label: 'IGCSE Year 2',  course: 'IGCSE Economics',  classes: ['G10L','G10M','G10P','G10VG'] },
+  { label: 'AS Level',      course: 'A Level Economics', classes: ['G11A','G11P','G11S','G11V'] },
+  { label: 'A Level',       course: 'A Level Economics', classes: ['G12G','G12M','G12P','G12U'] }
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let student = {}, studentList = [], catalogue = [];
+let currentQuiz = null, questions = [], shuffledOptions = [], answers = [], currentQ = 0;
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = splitLine(lines[0]).map(h => h.replace(/^"|"$/g,'').trim().toLowerCase().replace(/\s+/g,'_'));
+  return lines.slice(1).map(l => {
+    const vals = splitLine(l).map(v => v.replace(/^"|"$/g,'').trim());
+    const obj = {};
+    headers.forEach((h,i) => obj[h] = vals[i]||'');
+    return obj;
+  }).filter(r => Object.values(r).some(v=>v));
+}
+
+function splitLine(line) {
+  const vals=[]; let cur='', inQ=false;
+  for(let c of line){
+    if(c==='"'){inQ=!inQ;}
+    else if(c===','&&!inQ){vals.push(cur);cur='';}
+    else cur+=c;
+  }
+  vals.push(cur);
+  return vals;
+}
+
+function toCSVUrl(url) {
+  if(!url) return null;
+  if(url.includes('export?format=csv')) return url;
+  const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/), gm=url.match(/gid=(\d+)/);
+  return m ? `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gm?'&gid='+gm[1]:''}` : url;
+}
+
+function ytEmbed(url) {
+  const m=url.match(/(?:youtu\.be\/|v=|v\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? `https://www.youtube.com/embed/${m[1]}` : url;
+}
+
+function shuffle(arr){return [...arr].sort(()=>Math.random()-.5)}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+function setStep(n){
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById('step'+i);
+    el.className='step'+(i<n?' done':i===n?' active':'');
+  }
+}
+
+function goHome(){
+  document.getElementById('studentBar').classList.remove('visible');
+  ['selCampus','selYear','selClass','selStudent'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('selYear').disabled=true;
+  document.getElementById('selClass').disabled=true;
+  document.getElementById('selStudent').disabled=true;
+  document.getElementById('selYear').innerHTML='<option value="">— Select your campus first —</option>';
+  document.getElementById('selClass').innerHTML='<option value="">— Select your year group first —</option>';
+  document.getElementById('selStudent').innerHTML='<option value="">— Select your class first —</option>';
+  document.getElementById('confirmBox').style.display='none';
+  document.getElementById('loginError').style.display='none';
+  student={};
+  setStep(1);
+  showScreen('screenLogin');
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGIN FLOW
+// ═══════════════════════════════════════════════════════
+function onCampusChange(){
+  const campus=document.getElementById('selCampus').value;
+  const selYear=document.getElementById('selYear');
+  const selClass=document.getElementById('selClass');
+  const selStudent=document.getElementById('selStudent');
+  document.getElementById('confirmBox').style.display='none';
+  document.getElementById('loginError').style.display='none';
+
+  // Reset downstream
+  selYear.innerHTML='<option value="">— Select your year group —</option>';
+  selClass.innerHTML='<option value="">— Select your year group first —</option>';
+  selStudent.innerHTML='<option value="">— Select your class first —</option>';
+  selYear.disabled=!campus;
+  selClass.disabled=true;
+  selStudent.disabled=true;
+
+  if(!campus){setStep(1);return;}
+  YEAR_GROUPS.forEach(yg=>{
+    const opt=document.createElement('option');
+    opt.value=yg.label; opt.textContent=yg.label;
+    selYear.appendChild(opt);
+  });
+  setStep(2);
+}
+
+function onYearChange(){
+  const yearLabel=document.getElementById('selYear').value;
+  const selClass=document.getElementById('selClass');
+  const selStudent=document.getElementById('selStudent');
+  document.getElementById('confirmBox').style.display='none';
+  selClass.innerHTML='<option value="">— Select your class —</option>';
+  selStudent.innerHTML='<option value="">— Select your class first —</option>';
+  selClass.disabled=!yearLabel;
+  selStudent.disabled=true;
+  if(!yearLabel){setStep(2);return;}
+  const yg=YEAR_GROUPS.find(y=>y.label===yearLabel);
+  yg.classes.forEach(cls=>{
+    const opt=document.createElement('option');
+    opt.value=cls; opt.textContent=cls;
+    selClass.appendChild(opt);
+  });
+  setStep(3);
+}
+
+async function onClassChange(){
+  const cls=document.getElementById('selClass').value;
+  const campus=document.getElementById('selCampus').value;
+  const selStudent=document.getElementById('selStudent');
+  const loginLoad=document.getElementById('loginLoading');
+  const loginErr=document.getElementById('loginError');
+  document.getElementById('confirmBox').style.display='none';
+  loginErr.style.display='none';
+  selStudent.innerHTML='<option value="">Loading…</option>';
+  selStudent.disabled=true;
+  if(!cls){setStep(3);return;}
+
+  loginLoad.style.display='flex';
+  try{
+    const tab=encodeURIComponent(CAMPUS_TAB[campus]);
+    const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${tab}`;
+    const r=await fetch(url);
+    if(!r.ok) throw new Error();
+    const text=await r.text();
+    const all=parseCSV(text);
+    // Filter by class, sort alphabetically by nickname
+    studentList=all.filter(s=>s.class===cls||s.class_group===cls)
+      .sort((a,b)=>(a.nickname||a.full_name).localeCompare(b.nickname||b.full_name));
+    selStudent.innerHTML='<option value="">— Select your name —</option>';
+    if(!studentList.length){
+      selStudent.innerHTML='<option value="">No students found for this class</option>';
+    } else {
+      studentList.forEach((s,i)=>{
+        const opt=document.createElement('option');
+        opt.value=i;
+        opt.textContent=s.nickname;
+        selStudent.appendChild(opt);
+      });
+      selStudent.disabled=false;
+    }
+    setStep(4);
+  }catch(e){
+    loginErr.textContent='⚠️ Could not load student list. Please check your connection or ask your teacher.';
+    loginErr.style.display='block';
+    selStudent.innerHTML='<option value="">— Could not load —</option>';
+  }
+  loginLoad.style.display='none';
+}
+
+function onStudentChange(){
+  const idx=document.getElementById('selStudent').value;
+  const box=document.getElementById('confirmBox');
+  if(idx===''){box.style.display='none';return;}
+  const s=studentList[parseInt(idx)];
+  const yearLabel=document.getElementById('selYear').value;
+  document.getElementById('cfFullName').textContent=s.full_name;
+  document.getElementById('cfNickname').textContent=s.nickname;
+  document.getElementById('cfEmail').textContent=s.email;
+  document.getElementById('cfCampus').textContent=document.getElementById('selCampus').value;
+  document.getElementById('cfClass').textContent=document.getElementById('selClass').value;
+  document.getElementById('cfYear').textContent=yearLabel;
+  box.style.display='block';
+}
+
+function confirmLogin(){
+  const idx=document.getElementById('selStudent').value;
+  if(idx===''){showToast('Please select your name.');return;}
+  const s=studentList[parseInt(idx)];
+  const yearLabel=document.getElementById('selYear').value;
+  const yg=YEAR_GROUPS.find(y=>y.label===yearLabel);
+  student={
+    full_name:s.full_name, nickname:s.nickname, email:s.email,
+    campus:document.getElementById('selCampus').value,
+    class:document.getElementById('selClass').value,
+    year:yearLabel, course:yg.course
+  };
+  document.getElementById('barNickname').textContent='👤 '+student.nickname;
+  document.getElementById('barCampus').textContent='🏫 '+student.campus;
+  document.getElementById('barClass').textContent=student.class;
+  document.getElementById('barYear').textContent=student.year;
+  document.getElementById('studentBar').classList.add('visible');
+  document.getElementById('catTitle').textContent=student.year+' — '+student.course;
+  showScreen('screenCatalogue');
+  if(!catalogue.length) loadCatalogue(); else renderCatalogue();
+}
+
+// ═══════════════════════════════════════════════════════
+// CATALOGUE
+// ═══════════════════════════════════════════════════════
+async function loadCatalogue(){
+  try{
+    const r=await fetch(CATALOGUE_CSV);
+    catalogue=parseCSV(await r.text()).filter(q=>q.visible==='TRUE'&&q.quiz_title);
+    renderCatalogue();
+  }catch(e){
+    document.getElementById('catalogueList').innerHTML='<div class="error-box">⚠️ Could not load quiz catalogue. Please check your connection.</div>';
+  }
+}
+
+function renderCatalogue(){
+  const topics={};
+  catalogue.forEach(q=>{
+    if(!topics[q.topic]) topics[q.topic]=[];
+    topics[q.topic].push(q);
+  });
+  const done=JSON.parse(localStorage.getItem('sisb_'+student.email)||'{}');
+  let html='';
+  Object.entries(topics).forEach(([topic,quizzes])=>{
+    const doneCt=quizzes.filter(q=>done[q.quiz_id]!==undefined).length;
+    html+=`<div class="topic-section">
+      <div class="topic-header" onclick="toggleTopic(this)">
+        <span>${topic}</span>
+        <span style="display:flex;align-items:center;gap:10px">
+          ${doneCt?`<span style="font-size:11px;opacity:.8">${doneCt}/${quizzes.length} done</span>`:''}
+          <span class="topic-arrow">▶</span>
+        </span>
+      </div>
+      <div class="topic-quizzes">`;
+    quizzes.forEach(q=>{
+      const pct=done[q.quiz_id];
+      html+=`<div class="quiz-item" onclick="selectQuiz('${q.quiz_id}')">
+        <span class="quiz-item-title">${q.quiz_title}</span>
+        ${pct!==undefined
+          ?`<span class="quiz-item-badge badge-done">✓ ${pct}%</span>`
+          :`<span class="quiz-item-badge badge-new">Start</span>`}
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  document.getElementById('catalogueList').innerHTML=html||'<div class="error-box">No quizzes found.</div>';
+}
+
+function toggleTopic(el){
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// VIDEO
+// ═══════════════════════════════════════════════════════
+async function selectQuiz(quizId){
+  currentQuiz=catalogue.find(q=>q.quiz_id===quizId);
+  if(!currentQuiz) return;
+  document.getElementById('vTitle').textContent=currentQuiz.quiz_title;
+  document.getElementById('vTopicBadge').textContent=currentQuiz.topic;
+  document.getElementById('vQuizId').textContent='Quiz '+currentQuiz.quiz_id;
+  document.getElementById('ytPlayer').src=ytEmbed(currentQuiz.youtube_url);
+  document.getElementById('ytPlayerQuiz').src=ytEmbed(currentQuiz.youtube_url);
+  const btn=document.getElementById('startQuizBtn');
+  btn.disabled=true; btn.textContent='Loading questions…';
+  showScreen('screenVideo');
+  questions=[];
+  try{
+    const r=await fetch(toCSVUrl(currentQuiz.question_sheet_url));
+    questions=parseCSV(await r.text()).filter(q=>q.question);
+    btn.disabled=false;
+    btn.textContent=`Start Quiz (${questions.length} questions) →`;
+  }catch(e){btn.textContent='⚠️ Could not load questions';}
+}
+
+// ═══════════════════════════════════════════════════════
+// QUIZ
+// ═══════════════════════════════════════════════════════
+function startQuiz(){
+  if(!questions.length) return;
+  answers=new Array(questions.length).fill(null);
+  shuffledOptions=questions.map(q=>shuffle([
+    {letter:'A',text:q.option_a},{letter:'B',text:q.option_b},
+    {letter:'C',text:q.option_c},{letter:'D',text:q.option_d}
+  ]));
+  currentQ=0;
+  showScreen('screenQuiz');
+  renderQuestion();
+}
+
+function retakeQuiz(){startQuiz();}
+
+function renderQuestion(){
+  const q=questions[currentQ];
+  document.getElementById('progressBar').style.width=(currentQ/questions.length*100)+'%';
+  document.getElementById('questionNum').textContent=`Question ${currentQ+1} of ${questions.length}`;
+  document.getElementById('questionText').textContent=q.question;
+  document.getElementById('explanationBox').style.display='none';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('finishBtn').style.display='none';
+  const letters=['A','B','C','D'];
+  document.getElementById('optionsContainer').innerHTML=
+    shuffledOptions[currentQ].map((opt,i)=>
+      `<div class="option" id="opt${i}" onclick="selectAnswer(${i},'${opt.letter}','${q.correct_answer}')">
+        <div class="option-letter">${letters[i]}</div><span>${opt.text}</span>
+      </div>`
+    ).join('');
+}
+
+function selectAnswer(idx,letter,correct){
+  const opts=document.querySelectorAll('.option');
+  if(opts[0].classList.contains('disabled')) return;
+  opts.forEach(o=>o.classList.add('disabled'));
+  const isCorrect=letter===correct;
+  answers[currentQ]={chosen:letter,correct,isCorrect};
+  shuffledOptions[currentQ].forEach((opt,i)=>{
+    if(i===idx) opts[i].classList.add(isCorrect?'correct':'wrong');
+    if(opt.letter===correct&&i!==idx) opts[i].classList.add('correct');
+  });
+  const exp=document.getElementById('explanationBox');
+  exp.style.display='block';
+  exp.innerHTML=`<strong>${isCorrect?'✓ Correct!':'✗ Incorrect'}</strong> — ${questions[currentQ].explanation||''}`;
+  document.getElementById(currentQ<questions.length-1?'nextBtn':'finishBtn').style.display='inline-flex';
+}
+
+function nextQuestion(){currentQ++;renderQuestion();}
+
+// ═══════════════════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════════════════
+function finishQuiz(){
+  const correct=answers.filter(a=>a?.isCorrect).length;
+  const total=questions.length;
+  const pct=Math.round(correct/total*100);
+
+  const key='sisb_'+student.email;
+  const done=JSON.parse(localStorage.getItem(key)||'{}');
+  done[currentQuiz.quiz_id]=pct;
+  localStorage.setItem(key,JSON.stringify(done));
+
+  document.getElementById('scoreNum').textContent=`${correct}/${total}`;
+  document.getElementById('progressBar').style.width='100%';
+
+  let title,sub;
+  if(pct>=90){title='🏆 Outstanding!';sub='Exceptional work — a true Scholar!';}
+  else if(pct>=70){title='🎓 Well Done!';sub='A solid understanding of this topic.';}
+  else if(pct>=50){title='📚 Keep Revising';sub='Good start — review the explanations and try again.';}
+  else{title='💡 More Practice Needed';sub='Rewatch the video and try the quiz again.';}
+
+  document.getElementById('resultTitle').textContent=title;
+  document.getElementById('resultSub').textContent=`${sub} | ${student.nickname} · ${student.class} · ${pct}%`;
+
+  document.getElementById('reviewContainer').innerHTML=questions.map((q,i)=>{
+    const a=answers[i]; if(!a) return '';
+    const chosenOpt=shuffledOptions[i].find(o=>o.letter===a.chosen);
+    const correctOpt=shuffledOptions[i].find(o=>o.letter===a.correct);
+    return `<div class="review-item ${a.isCorrect?'correct-q':'wrong-q'}">
+      <div class="review-q">${i+1}. ${q.question}</div>
+      ${!a.isCorrect?`<div class="review-ans wrong">✗ Your answer: ${chosenOpt?.text||a.chosen}</div>`:''}
+      <div class="review-ans correct">✓ Correct: ${correctOpt?.text||a.correct}</div>
+      <div class="review-exp">${q.explanation||''}</div>
+    </div>`;
+  }).join('');
+
+  showScreen('screenResults');
+  submitResults(correct,total,pct);
+}
+
+async function submitResults(correct,total,pct){
+  if(RESPONSE_WEBHOOK==='YOUR_APPS_SCRIPT_URL_HERE') return;
+  try{
+    await fetch(RESPONSE_WEBHOOK,{
+      method:'POST',mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        nickname:student.nickname, email:student.email,
+        course:student.course, campus:student.campus,
+        class:student.class, year:student.year,
+        quiz_id:currentQuiz.quiz_id,
+        quiz_title:currentQuiz.quiz_title,
+        topic:currentQuiz.topic,
+        score:correct, total, percentage:pct,
+        timestamp:new Date().toISOString()
+      })
+    });
+  }catch(e){}
+}
+</script>
+</body>
+</html>
