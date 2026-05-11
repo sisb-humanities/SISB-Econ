@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SISB Economics</title>
 <link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="favicon.png">  
+<link rel="apple-touch-icon" href="favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -31,8 +31,8 @@ body{font-family:'Lato',sans-serif;background:#f0f4f8;min-height:100vh;color:#1a
 
 .form-group{margin-bottom:18px}
 label{display:block;font-size:13px;font-weight:700;color:#002F6C;margin-bottom:6px;letter-spacing:.3px}
-select{width:100%;padding:11px 14px;border:2px solid #dde3ea;border-radius:9px;font-family:'Lato',sans-serif;font-size:14px;color:#1a1a2e;transition:border-color .2s;background:#fff;-webkit-appearance:none}
-select:focus{outline:none;border-color:#008BCC}
+select,input[type=tel]{width:100%;padding:11px 14px;border:2px solid #dde3ea;border-radius:9px;font-family:'Lato',sans-serif;font-size:14px;color:#1a1a2e;transition:border-color .2s;background:#fff;-webkit-appearance:none}
+select:focus,input[type=tel]:focus{outline:none;border-color:#008BCC}
 select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 
 .step-indicator{display:flex;gap:6px;margin-bottom:24px}
@@ -118,6 +118,9 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 
 .toast{position:fixed;bottom:24px;right:24px;background:#002F6C;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;z-index:999}
 .toast.show{opacity:1;transform:translateY(0)}
+
+.dob-input{letter-spacing:4px;font-size:18px;font-weight:700;text-align:center}
+.dob-error{display:none;color:#FF801D;font-size:13px;font-weight:700;margin-top:-10px;margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -151,9 +154,9 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
       <div class="step" id="step2"></div>
       <div class="step" id="step3"></div>
       <div class="step" id="step4"></div>
+      <div class="step" id="step5"></div>
     </div>
 
-    <!-- Step 1: Campus -->
     <div class="form-group">
       <label>1. Campus</label>
       <select id="selCampus" onchange="onCampusChange()">
@@ -165,7 +168,6 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
       </select>
     </div>
 
-    <!-- Step 2: Year Group -->
     <div class="form-group">
       <label>2. Year Group</label>
       <select id="selYear" onchange="onYearChange()" disabled>
@@ -173,7 +175,6 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
       </select>
     </div>
 
-    <!-- Step 3: Class -->
     <div class="form-group">
       <label>3. Class</label>
       <select id="selClass" onchange="onClassChange()" disabled>
@@ -181,7 +182,6 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
       </select>
     </div>
 
-    <!-- Step 4: Name -->
     <div class="form-group">
       <label>4. Your Name</label>
       <select id="selStudent" onchange="onStudentChange()" disabled>
@@ -193,6 +193,15 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
       <div class="loading"><div class="spinner"></div><p>Loading student list…</p></div>
     </div>
     <div id="loginError" style="display:none" class="error-box"></div>
+
+    <!-- Step 5: DOB -->
+    <div id="dobBox" style="display:none">
+      <div class="form-group">
+        <label>5. Date of Birth <span style="font-weight:400;color:#7a8fa0">(6 digits — e.g. 251209 for 25 Dec 2009)</span></label>
+        <input type="tel" id="inputDob" class="dob-input" maxlength="6" placeholder="DDMMYY" oninput="onDobInput()">
+      </div>
+      <div class="dob-error" id="dobError">⚠️ Date of birth does not match. Please try again.</div>
+    </div>
 
     <!-- Confirm -->
     <div id="confirmBox" style="display:none">
@@ -214,7 +223,7 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 <div class="screen" id="screenCatalogue">
   <div class="card">
     <h2 id="catTitle"></h2>
-    <p class="subtitle" id="catSub">Choose a topic, watch the video, then complete the quiz.</p>
+    <p class="subtitle">Choose a topic, watch the video, then complete the quiz.</p>
     <div id="catalogueList">
       <div class="loading"><div class="spinner"></div><p>Loading quizzes…</p></div>
     </div>
@@ -281,53 +290,42 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 
 <script>
 // ═══════════════════════════════════════════════════════
-// CONFIG — update these values after setting up your sheets
+// CONFIG
 // ═══════════════════════════════════════════════════════
 const RESPONSE_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwd_lpy7Rj_ltrhuai1SktAXT-KjFFUBIbby26f3_tZiCA_Ksd5fRTp4ncM5Xdl_EPQTQ/exec';
-
-// Student sheet — one fetch per campus using tab name
 const STUDENTS_SHEET_ID = '15EL9ao5GoMLYqmIPgNYxM_sO_eYS0XIkrPgphk2KaWo';
-const CAMPUS_TAB = {
-  NR: 'NR_Students',
-  PU: 'PU_Students',
-  TR: 'TR_Students',
-  CM: 'CM_Students'
-};
-
+const CAMPUS_TAB = { NR:'NR_Students', PU:'PU_Students', TR:'TR_Students', CM:'CM_Students' };
 const CATALOGUE_CSV = 'https://docs.google.com/spreadsheets/d/1M6QJOgDr5BYtsxpxLA-u1_RYRCugzlINQOUrVsTin-o/export?format=csv&gid=0';
 
-// ═══════════════════════════════════════════════════════
-// YEAR GROUPS & CLASSES
-// ═══════════════════════════════════════════════════════
 const YEAR_GROUPS = [
-  { label: 'IGCSE Year 1',  course: 'IGCSE Economics',  classes: ['G9B','G9G','G9M','G9S'] },
-  { label: 'IGCSE Year 2',  course: 'IGCSE Economics',  classes: ['G10L','G10M','G10P','G10VG'] },
-  { label: 'AS Level',      course: 'A Level Economics', classes: ['G11A','G11P','G11S','G11V'] },
-  { label: 'A Level',       course: 'A Level Economics', classes: ['G12G','G12M','G12P','G12U'] }
+  { label:'IGCSE Year 1',  course:'IGCSE Economics',   classes:['G9B','G9G','G9M','G9S'] },
+  { label:'IGCSE Year 2',  course:'IGCSE Economics',   classes:['G10L','G10M','G10P','G10VG'] },
+  { label:'AS Level',      course:'A Level Economics',  classes:['G11A','G11P','G11S','G11V'] },
+  { label:'A Level',       course:'A Level Economics',  classes:['G12G','G12M','G12P','G12U'] }
 ];
 
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let student = {}, studentList = [], catalogue = [];
-let currentQuiz = null, questions = [], shuffledOptions = [], answers = [], currentQ = 0;
+let student={}, studentList=[], catalogue=[];
+let currentQuiz=null, questions=[], shuffledOptions=[], answers=[], currentQ=0;
 
 // ═══════════════════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════════════════
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = splitLine(lines[0]).map(h => h.replace(/^"|"$/g,'').trim().toLowerCase().replace(/\s+/g,'_'));
-  return lines.slice(1).map(l => {
-    const vals = splitLine(l).map(v => v.replace(/^"|"$/g,'').trim());
-    const obj = {};
-    headers.forEach((h,i) => obj[h] = vals[i]||'');
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  const headers=splitLine(lines[0]).map(h=>h.replace(/^"|"$/g,'').trim().toLowerCase().replace(/\s+/g,'_'));
+  return lines.slice(1).map(l=>{
+    const vals=splitLine(l).map(v=>v.replace(/^"|"$/g,'').trim());
+    const obj={};
+    headers.forEach((h,i)=>obj[h]=vals[i]||'');
     return obj;
-  }).filter(r => Object.values(r).some(v=>v));
+  }).filter(r=>Object.values(r).some(v=>v));
 }
 
-function splitLine(line) {
-  const vals=[]; let cur='', inQ=false;
+function splitLine(line){
+  const vals=[]; let cur='',inQ=false;
   for(let c of line){
     if(c==='"'){inQ=!inQ;}
     else if(c===','&&!inQ){vals.push(cur);cur='';}
@@ -337,16 +335,16 @@ function splitLine(line) {
   return vals;
 }
 
-function toCSVUrl(url) {
+function toCSVUrl(url){
   if(!url) return null;
   if(url.includes('export?format=csv')) return url;
-  const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/), gm=url.match(/gid=(\d+)/);
-  return m ? `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gm?'&gid='+gm[1]:''}` : url;
+  const m=url.match(/\/d\/([a-zA-Z0-9_-]+)/),gm=url.match(/gid=(\d+)/);
+  return m?`https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gm?'&gid='+gm[1]:''}`:url;
 }
 
-function ytEmbed(url) {
+function ytEmbed(url){
   const m=url.match(/(?:youtu\.be\/|v=|v\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
-  return m ? `https://www.youtube.com/embed/${m[1]}` : url;
+  return m?`https://www.youtube.com/embed/${m[1]}`:url;
 }
 
 function shuffle(arr){return [...arr].sort(()=>Math.random()-.5)}
@@ -364,9 +362,8 @@ function showToast(msg){
 }
 
 function setStep(n){
-  for(let i=1;i<=4;i++){
-    const el=document.getElementById('step'+i);
-    el.className='step'+(i<n?' done':i===n?' active':'');
+  for(let i=1;i<=5;i++){
+    document.getElementById('step'+i).className='step'+(i<n?' done':i===n?' active':'');
   }
 }
 
@@ -380,6 +377,8 @@ function goHome(){
   document.getElementById('selClass').innerHTML='<option value="">— Select your year group first —</option>';
   document.getElementById('selStudent').innerHTML='<option value="">— Select your class first —</option>';
   document.getElementById('confirmBox').style.display='none';
+  document.getElementById('dobBox').style.display='none';
+  document.getElementById('dobError').style.display='none';
   document.getElementById('loginError').style.display='none';
   student={};
   setStep(1);
@@ -392,19 +391,13 @@ function goHome(){
 function onCampusChange(){
   const campus=document.getElementById('selCampus').value;
   const selYear=document.getElementById('selYear');
-  const selClass=document.getElementById('selClass');
-  const selStudent=document.getElementById('selStudent');
-  document.getElementById('confirmBox').style.display='none';
-  document.getElementById('loginError').style.display='none';
-
-  // Reset downstream
+  ['confirmBox','dobBox','loginError'].forEach(id=>document.getElementById(id).style.display='none');
   selYear.innerHTML='<option value="">— Select your year group —</option>';
-  selClass.innerHTML='<option value="">— Select your year group first —</option>';
-  selStudent.innerHTML='<option value="">— Select your class first —</option>';
+  document.getElementById('selClass').innerHTML='<option value="">— Select your year group first —</option>';
+  document.getElementById('selStudent').innerHTML='<option value="">— Select your class first —</option>';
   selYear.disabled=!campus;
-  selClass.disabled=true;
-  selStudent.disabled=true;
-
+  document.getElementById('selClass').disabled=true;
+  document.getElementById('selStudent').disabled=true;
   if(!campus){setStep(1);return;}
   YEAR_GROUPS.forEach(yg=>{
     const opt=document.createElement('option');
@@ -417,15 +410,13 @@ function onCampusChange(){
 function onYearChange(){
   const yearLabel=document.getElementById('selYear').value;
   const selClass=document.getElementById('selClass');
-  const selStudent=document.getElementById('selStudent');
-  document.getElementById('confirmBox').style.display='none';
+  ['confirmBox','dobBox'].forEach(id=>document.getElementById(id).style.display='none');
   selClass.innerHTML='<option value="">— Select your class —</option>';
-  selStudent.innerHTML='<option value="">— Select your class first —</option>';
+  document.getElementById('selStudent').innerHTML='<option value="">— Select your class first —</option>';
   selClass.disabled=!yearLabel;
-  selStudent.disabled=true;
+  document.getElementById('selStudent').disabled=true;
   if(!yearLabel){setStep(2);return;}
-  const yg=YEAR_GROUPS.find(y=>y.label===yearLabel);
-  yg.classes.forEach(cls=>{
+  YEAR_GROUPS.find(y=>y.label===yearLabel).classes.forEach(cls=>{
     const opt=document.createElement('option');
     opt.value=cls; opt.textContent=cls;
     selClass.appendChild(opt);
@@ -439,21 +430,18 @@ async function onClassChange(){
   const selStudent=document.getElementById('selStudent');
   const loginLoad=document.getElementById('loginLoading');
   const loginErr=document.getElementById('loginError');
-  document.getElementById('confirmBox').style.display='none';
+  ['confirmBox','dobBox'].forEach(id=>document.getElementById(id).style.display='none');
   loginErr.style.display='none';
   selStudent.innerHTML='<option value="">Loading…</option>';
   selStudent.disabled=true;
   if(!cls){setStep(3);return;}
-
   loginLoad.style.display='flex';
   try{
     const tab=encodeURIComponent(CAMPUS_TAB[campus]);
     const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${tab}`;
     const r=await fetch(url);
     if(!r.ok) throw new Error();
-    const text=await r.text();
-    const all=parseCSV(text);
-    // Filter by class, sort alphabetically by nickname
+    const all=parseCSV(await r.text());
     studentList=all.filter(s=>s.class===cls||s.class_group===cls)
       .sort((a,b)=>(a.nickname||a.full_name).localeCompare(b.nickname||b.full_name));
     selStudent.innerHTML='<option value="">— Select your name —</option>';
@@ -462,8 +450,7 @@ async function onClassChange(){
     } else {
       studentList.forEach((s,i)=>{
         const opt=document.createElement('option');
-        opt.value=i;
-        opt.textContent=s.nickname;
+        opt.value=i; opt.textContent=s.nickname;
         selStudent.appendChild(opt);
       });
       selStudent.disabled=false;
@@ -479,17 +466,41 @@ async function onClassChange(){
 
 function onStudentChange(){
   const idx=document.getElementById('selStudent').value;
-  const box=document.getElementById('confirmBox');
-  if(idx===''){box.style.display='none';return;}
-  const s=studentList[parseInt(idx)];
-  const yearLabel=document.getElementById('selYear').value;
-  document.getElementById('cfFullName').textContent=s.full_name;
-  document.getElementById('cfNickname').textContent=s.nickname;
-  document.getElementById('cfEmail').textContent=s.email;
-  document.getElementById('cfCampus').textContent=document.getElementById('selCampus').value;
-  document.getElementById('cfClass').textContent=document.getElementById('selClass').value;
-  document.getElementById('cfYear').textContent=yearLabel;
-  box.style.display='block';
+  document.getElementById('confirmBox').style.display='none';
+  document.getElementById('dobError').style.display='none';
+  document.getElementById('inputDob').value='';
+  if(idx===''){document.getElementById('dobBox').style.display='none';return;}
+  document.getElementById('dobBox').style.display='block';
+  document.getElementById('inputDob').focus();
+  setStep(5);
+}
+
+function onDobInput(){
+  const idx=document.getElementById('selStudent').value;
+  if(idx==='') return;
+  let val=document.getElementById('inputDob').value.replace(/\D/g,'');
+  document.getElementById('inputDob').value=val;
+  document.getElementById('dobError').style.display='none';
+  if(val.length===6) verifyDob(val,parseInt(idx));
+}
+
+function verifyDob(entered,idx){
+  const s=studentList[idx];
+  const stored=(s.dob||'').replace(/\D/g,'');
+  if(entered===stored){
+    const yearLabel=document.getElementById('selYear').value;
+    document.getElementById('cfFullName').textContent=s.full_name;
+    document.getElementById('cfNickname').textContent=s.nickname;
+    document.getElementById('cfEmail').textContent=s.email;
+    document.getElementById('cfCampus').textContent=document.getElementById('selCampus').value;
+    document.getElementById('cfClass').textContent=document.getElementById('selClass').value;
+    document.getElementById('cfYear').textContent=yearLabel;
+    document.getElementById('confirmBox').style.display='block';
+  } else {
+    document.getElementById('dobError').style.display='block';
+    document.getElementById('inputDob').value='';
+    document.getElementById('confirmBox').style.display='none';
+  }
 }
 
 function confirmLogin(){
@@ -571,11 +582,12 @@ function toggleTopic(el){
 async function selectQuiz(quizId){
   currentQuiz=catalogue.find(q=>q.quiz_id===quizId);
   if(!currentQuiz) return;
+  const embedUrl=ytEmbed(currentQuiz.youtube_url);
   document.getElementById('vTitle').textContent=currentQuiz.quiz_title;
   document.getElementById('vTopicBadge').textContent=currentQuiz.topic;
   document.getElementById('vQuizId').textContent='Quiz '+currentQuiz.quiz_id;
-  document.getElementById('ytPlayer').src=ytEmbed(currentQuiz.youtube_url);
-  document.getElementById('ytPlayerQuiz').src=ytEmbed(currentQuiz.youtube_url);
+  document.getElementById('ytPlayer').src=embedUrl;
+  document.getElementById('ytPlayerQuiz').src=embedUrl;
   const btn=document.getElementById('startQuizBtn');
   btn.disabled=true; btn.textContent='Loading questions…';
   showScreen('screenVideo');
@@ -647,24 +659,19 @@ function finishQuiz(){
   const correct=answers.filter(a=>a?.isCorrect).length;
   const total=questions.length;
   const pct=Math.round(correct/total*100);
-
   const key='sisb_'+student.email;
   const done=JSON.parse(localStorage.getItem(key)||'{}');
   done[currentQuiz.quiz_id]=pct;
   localStorage.setItem(key,JSON.stringify(done));
-
   document.getElementById('scoreNum').textContent=`${correct}/${total}`;
   document.getElementById('progressBar').style.width='100%';
-
   let title,sub;
   if(pct>=90){title='🏆 Outstanding!';sub='Exceptional work — a true Scholar!';}
   else if(pct>=70){title='🎓 Well Done!';sub='A solid understanding of this topic.';}
   else if(pct>=50){title='📚 Keep Revising';sub='Good start — review the explanations and try again.';}
   else{title='💡 More Practice Needed';sub='Rewatch the video and try the quiz again.';}
-
   document.getElementById('resultTitle').textContent=title;
   document.getElementById('resultSub').textContent=`${sub} | ${student.nickname} · ${student.class} · ${pct}%`;
-
   document.getElementById('reviewContainer').innerHTML=questions.map((q,i)=>{
     const a=answers[i]; if(!a) return '';
     const chosenOpt=shuffledOptions[i].find(o=>o.letter===a.chosen);
@@ -676,24 +683,21 @@ function finishQuiz(){
       <div class="review-exp">${q.explanation||''}</div>
     </div>`;
   }).join('');
-
   showScreen('screenResults');
   submitResults(correct,total,pct);
 }
 
 async function submitResults(correct,total,pct){
-  if(RESPONSE_WEBHOOK==='YOUR_APPS_SCRIPT_URL_HERE') return;
   try{
     await fetch(RESPONSE_WEBHOOK,{
       method:'POST',mode:'no-cors',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        nickname:student.nickname, email:student.email,
-        course:student.course, campus:student.campus,
-        class:student.class, year:student.year,
-        quiz_id:currentQuiz.quiz_id,
-        quiz_title:currentQuiz.quiz_title,
-        topic:currentQuiz.topic,
+        nickname:student.nickname, full_name:student.full_name,
+        email:student.email, course:student.course,
+        campus:student.campus, class:student.class,
+        year:student.year, quiz_id:currentQuiz.quiz_id,
+        quiz_title:currentQuiz.quiz_title, topic:currentQuiz.topic,
         score:correct, total, percentage:pct,
         timestamp:new Date().toISOString()
       })
