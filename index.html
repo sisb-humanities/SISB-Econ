@@ -325,6 +325,9 @@ function parseCSV(text){
 }
 
 function splitLine(line){
+  // Handle tab-separated values first
+  if(line.includes('\t')) return line.split('\t');
+  // Fall back to comma-separated with quote handling
   const vals=[]; let cur='',inQ=false;
   for(let c of line){
     if(c==='"'){inQ=!inQ;}
@@ -438,7 +441,7 @@ async function onClassChange(){
   loginLoad.style.display='flex';
   try{
     const tab=encodeURIComponent(CAMPUS_TAB[campus]);
-    const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${tab}`;
+    const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/export?format=csv&sheet=${tab}`;
     const r=await fetch(url);
     if(!r.ok) throw new Error();
     const all=parseCSV(await r.text());
