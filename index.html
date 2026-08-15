@@ -295,7 +295,10 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 const RESPONSE_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwd_lpy7Rj_ltrhuai1SktAXT-KjFFUBIbby26f3_tZiCA_Ksd5fRTp4ncM5Xdl_EPQTQ/exec';
 const STUDENTS_SHEET_ID = '15EL9ao5GoMLYqmIPgNYxM_sO_eYS0XIkrPgphk2KaWo';
 const CAMPUS_TAB = { NR:'NR_Students', PU:'PU_Students', TR:'TR_Students', CM:'CM_Students' };
-const CATALOGUE_CSV = 'https://docs.google.com/spreadsheets/d/1M6QJOgDr5BYtsxpxLA-u1_RYRCugzlINQOUrVsTin-o/export?format=csv&gid=0';
+const CATALOGUES = {
+  'IGCSE Economics':   'https://docs.google.com/spreadsheets/d/1M6QJOgDr5BYtsxpxLA-u1_RYRCugzlINQOUrVsTin-o/export?format=csv&gid=0',
+  'A Level Economics': 'https://docs.google.com/spreadsheets/d/1_lk12ve7rzt-jWd7j5gulij6z937hQ83ETbGP9EfPYg/export?format=csv&gid=0'
+};
 
 const YEAR_GROUPS = [
   { label:'IGCSE Year 1',  course:'IGCSE Economics',   classes:['G9B','G9G','G9M','G9S'] },
@@ -441,12 +444,15 @@ async function onClassChange(){
   loginLoad.style.display='flex';
   try{
     const tab=encodeURIComponent(CAMPUS_TAB[campus]);
-    const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/export?format=csv&sheet=${tab}`;
+    const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/export?format=csv&sheet=${tab}&exportFormat=csv`;
     const r=await fetch(url);
     if(!r.ok) throw new Error();
     const all=parseCSV(await r.text());
     studentList=all.filter(s=>s.class===cls||s.class_group===cls)
       .sort((a,b)=>(a.nickname||a.full_name).localeCompare(b.nickname||b.full_name));
+    console.log('Looking for class:', cls);
+    console.log('All parsed rows:', JSON.stringify(all.slice(0,3)));
+    console.log('Matched students:', studentList.length);
     selStudent.innerHTML='<option value="">— Select your name —</option>';
     if(!studentList.length){
       selStudent.innerHTML='<option value="">No students found for this class</option>';
@@ -533,8 +539,13 @@ function confirmLogin(){
 // ═══════════════════════════════════════════════════════
 async function loadCatalogue(){
   try{
-    const r=await fetch(CATALOGUE_CSV);
-    catalogue=parseCSV(await r.text()).filter(q=>q.visible==='TRUE'&&q.quiz_title);
+    const url=CATALOGUES[student.course];
+    const r=await fetch(url);
+    const rows=parseCSV(await r.text());
+    // Normalise: A Level sheet uses 'unit_title' instead of 'topic'
+    catalogue=rows
+      .filter(q=>q.visible==='TRUE'&&q.quiz_title)
+      .map(q=>({...q, topic: q.topic||q.unit_title||''}));
     renderCatalogue();
   }catch(e){
     document.getElementById('catalogueList').innerHTML='<div class="error-box">⚠️ Could not load quiz catalogue. Please check your connection.</div>';
