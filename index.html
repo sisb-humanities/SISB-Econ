@@ -33,7 +33,7 @@ body{font-family:'Lato',sans-serif;background:#f0f4f8;min-height:100vh;color:#1a
 label{display:block;font-size:13px;font-weight:700;color:#002F6C;margin-bottom:6px;letter-spacing:.3px}
 select,input[type=tel]{width:100%;padding:11px 14px;border:2px solid #dde3ea;border-radius:9px;font-family:'Lato',sans-serif;font-size:14px;color:#1a1a2e;transition:border-color .2s;background:#fff;-webkit-appearance:none}
 select:focus,input[type=tel]:focus{outline:none;border-color:#008BCC}
-select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
+select:disabled,input[type=tel]:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 
 .step-indicator{display:flex;gap:6px;margin-bottom:24px}
 .step{flex:1;height:4px;border-radius:4px;background:#e0edf6;transition:background .3s}
@@ -42,10 +42,10 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 
 .confirm-box{background:#f0f8ff;border:2px solid #c8e6f7;border-radius:10px;padding:16px;margin-bottom:20px}
 .confirm-box h3{font-size:13px;font-weight:900;color:#002F6C;margin-bottom:10px}
-.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #ddeef8;font-size:13px}
+.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #ddeef8;font-size:13px;gap:12px}
 .confirm-row:last-child{border-bottom:none;padding-bottom:0}
 .confirm-label{color:#5a6a7a;font-weight:700}
-.confirm-value{color:#002F6C;font-weight:700}
+.confirm-value{color:#002F6C;font-weight:700;text-align:right;word-break:break-word}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:9px;font-family:'Lato',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s}
 .btn-primary{background:linear-gradient(135deg,#008BCC,#0073aa);color:#fff;box-shadow:0 3px 12px rgba(0,139,204,.3)}
@@ -121,6 +121,11 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 
 .dob-input{letter-spacing:4px;font-size:18px;font-weight:700;text-align:center}
 .dob-error{display:none;color:#FF801D;font-size:13px;font-weight:700;margin-top:-10px;margin-bottom:14px}
+.dob-checking{display:none;color:#5a6a7a;font-size:13px;font-weight:700;margin-top:-10px;margin-bottom:14px}
+
+.return-tick{width:64px;height:64px;border-radius:50%;background:#e6f9ee;color:#1a6b35;font-size:30px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.return-card{text-align:center}
+.return-card .btn-full + .btn-full{margin-top:10px}
 </style>
 </head>
 <body>
@@ -138,7 +143,7 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
   <span class="student-chip" id="barCampus"></span>
   <span class="student-chip" id="barClass"></span>
   <span class="student-chip green" id="barYear"></span>
-  <button class="change-btn" onclick="goHome()">✏️ Change student</button>
+  <button class="change-btn" onclick="changeStudent()">✏️ Change student</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -147,7 +152,7 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 <div class="screen active" id="screenLogin">
   <div class="card">
     <h2>Welcome to SISB Economics</h2>
-    <p class="subtitle">Select your campus, year group and class to find your name.</p>
+    <p class="subtitle">Select your campus, year group and class to find your name. You only need to do this once on each device.</p>
 
     <div class="step-indicator">
       <div class="step active" id="step1"></div>
@@ -198,9 +203,10 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
     <div id="dobBox" style="display:none">
       <div class="form-group">
         <label>5. Date of Birth <span style="font-weight:400;color:#7a8fa0">(6 digits — e.g. 251209 for 25 Dec 2009)</span></label>
-        <input type="tel" id="inputDob" class="dob-input" maxlength="6" placeholder="DDMMYY" oninput="onDobInput()">
+        <input type="tel" id="inputDob" class="dob-input" maxlength="6" placeholder="DDMMYY" oninput="onDobInput()" autocomplete="off">
       </div>
-      <div class="dob-error" id="dobError">⚠️ Date of birth does not match. Please try again.</div>
+      <div class="dob-checking" id="dobChecking">Checking…</div>
+      <div class="dob-error" id="dobError"></div>
     </div>
 
     <!-- Confirm -->
@@ -216,6 +222,17 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
       </div>
       <button class="btn btn-primary btn-full" onclick="confirmLogin()">That's me — Start Learning →</button>
     </div>
+  </div>
+</div>
+
+<!-- ═══ SCREEN 1b: Logged in, sent here from an activity page ═══ -->
+<div class="screen" id="screenReturn">
+  <div class="card return-card">
+    <div class="return-tick">✓</div>
+    <h2>You're logged in</h2>
+    <p class="subtitle" id="returnMsg"></p>
+    <button class="btn btn-primary btn-full" onclick="goBack()">Back to the activity →</button>
+    <button class="btn btn-secondary btn-full" onclick="changeStudent()">Not me — change student</button>
   </div>
 </div>
 
@@ -292,9 +309,9 @@ select:disabled{background:#f5f7fa;color:#9aabb8;cursor:not-allowed}
 // ═══════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════
-const RESPONSE_WEBHOOK = 'https://script.google.com/macros/s/AKfycbwd_lpy7Rj_ltrhuai1SktAXT-KjFFUBIbby26f3_tZiCA_Ksd5fRTp4ncM5Xdl_EPQTQ/exec';
-const STUDENTS_SHEET_ID = '15EL9ao5GoMLYqmIPgNYxM_sO_eYS0XIkrPgphk2KaWo';
-const CAMPUS_TAB = { NR:'NR_Students', PU:'PU_Students', TR:'TR_Students', CM:'CM_Students' };
+// One Apps Script handles the class list, the DOB check and quiz results.
+// The student roster is NOT fetched by this page — it stays private.
+const API = 'https://script.google.com/macros/s/AKfycbwd_lpy7Rj_ltrhuai1SktAXT-KjFFUBIbby26f3_tZiCA_Ksd5fRTp4ncM5Xdl_EPQTQ/exec';
 const CATALOGUES = {
   'IGCSE Economics':   'https://docs.google.com/spreadsheets/d/1M6QJOgDr5BYtsxpxLA-u1_RYRCugzlINQOUrVsTin-o/export?format=csv&gid=0',
   'A Level Economics': 'https://docs.google.com/spreadsheets/d/1_lk12ve7rzt-jWd7j5gulij6z937hQ83ETbGP9EfPYg/export?format=csv&gid=0'
@@ -307,11 +324,22 @@ const YEAR_GROUPS = [
   { label:'A Level',       course:'A Level Economics',  classes:['G12G','G12M','G12P','G12U'] }
 ];
 
+// The saved login is shared with the interactive websites on this domain
+// (same key is read by sisb-tracker.js). It lasts LOGIN_DAYS on a device.
+const LOGIN_KEY  = 'sisb_econ_student';
+const LOGIN_DAYS = 120;
+const SITE_ORIGIN = 'https://sisb-humanities.github.io';
+
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let student={}, studentList=[], catalogue=[];
+let student={}, pendingStudent=null, studentList=[], catalogue=[], catalogueCourse='';
 let currentQuiz=null, questions=[], shuffledOptions=[], answers=[], currentQ=0;
+let verifying=false;
+
+const params=new URLSearchParams(location.search);
+let returnTo=safeReturn(params.get('return'));   // activity page that sent the student here
+let deepQuiz=params.get('quiz');                  // e.g. ?quiz=2.3 opens that quiz after login
 
 // ═══════════════════════════════════════════════════════
 // UTILS
@@ -328,9 +356,7 @@ function parseCSV(text){
 }
 
 function splitLine(line){
-  // Handle tab-separated values first
   if(line.includes('\t')) return line.split('\t');
-  // Fall back to comma-separated with quote handling
   const vals=[]; let cur='',inQ=false;
   for(let c of line){
     if(c==='"'){inQ=!inQ;}
@@ -349,11 +375,15 @@ function toCSVUrl(url){
 }
 
 function ytEmbed(url){
-  const m=url.match(/(?:youtu\.be\/|v=|v\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+  const m=(url||'').match(/(?:youtu\.be\/|v=|v\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
   return m?`https://www.youtube.com/embed/${m[1]}`:url;
 }
 
-function shuffle(arr){return [...arr].sort(()=>Math.random()-.5)}
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
 
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -373,6 +403,34 @@ function setStep(n){
   }
 }
 
+function safeReturn(u){
+  if(!u) return null;
+  try{ const x=new URL(u); return x.origin===SITE_ORIGIN ? x.href : null; }catch(e){ return null; }
+}
+
+// ═══════════════════════════════════════════════════════
+// SAVED LOGIN
+// ═══════════════════════════════════════════════════════
+function saveLogin(s){
+  try{ localStorage.setItem(LOGIN_KEY, JSON.stringify(Object.assign({}, s, {saved_at:Date.now()}))); }catch(e){}
+}
+function loadLogin(){
+  try{
+    const s=JSON.parse(localStorage.getItem(LOGIN_KEY)||'null');
+    if(!s||!s.email) return null;
+    if(Date.now()-(s.saved_at||0) > LOGIN_DAYS*864e5){ localStorage.removeItem(LOGIN_KEY); return null; }
+    return s;
+  }catch(e){ return null; }
+}
+function clearLogin(){
+  try{ localStorage.removeItem(LOGIN_KEY); }catch(e){}
+}
+
+function changeStudent(){
+  clearLogin();
+  goHome();
+}
+
 function goHome(){
   document.getElementById('studentBar').classList.remove('visible');
   ['selCampus','selYear','selClass','selStudent'].forEach(id=>document.getElementById(id).value='');
@@ -382,11 +440,8 @@ function goHome(){
   document.getElementById('selYear').innerHTML='<option value="">— Select your campus first —</option>';
   document.getElementById('selClass').innerHTML='<option value="">— Select your year group first —</option>';
   document.getElementById('selStudent').innerHTML='<option value="">— Select your class first —</option>';
-  document.getElementById('confirmBox').style.display='none';
-  document.getElementById('dobBox').style.display='none';
-  document.getElementById('dobError').style.display='none';
-  document.getElementById('loginError').style.display='none';
-  student={};
+  ['confirmBox','dobBox','dobError','dobChecking','loginError'].forEach(id=>document.getElementById(id).style.display='none');
+  student={}; pendingStudent=null;
   setStep(1);
   showScreen('screenLogin');
 }
@@ -443,23 +498,20 @@ async function onClassChange(){
   if(!cls){setStep(3);return;}
   loginLoad.style.display='flex';
   try{
-    const tab=encodeURIComponent(CAMPUS_TAB[campus]);
-    const url=`https://docs.google.com/spreadsheets/d/${STUDENTS_SHEET_ID}/export?format=csv&sheet=${tab}&exportFormat=csv`;
-    const r=await fetch(url);
+    const r=await fetch(`${API}?action=roster&campus=${encodeURIComponent(campus)}&cls=${encodeURIComponent(cls)}`);
     if(!r.ok) throw new Error();
-    const all=parseCSV(await r.text());
-    studentList=all.filter(s=>s.class===cls||s.class_group===cls)
-      .sort((a,b)=>(a.nickname||a.full_name).localeCompare(b.nickname||b.full_name));
-    console.log('Looking for class:', cls);
-    console.log('All parsed rows:', JSON.stringify(all.slice(0,3)));
-    console.log('Matched students:', studentList.length);
+    const data=await r.json();
+    if(data.status!=='ok') throw new Error(data.message||'');
+    // ignore a late reply if the student has already picked a different class
+    if(document.getElementById('selClass').value!==cls) return;
+    studentList=data.students||[];
     selStudent.innerHTML='<option value="">— Select your name —</option>';
     if(!studentList.length){
       selStudent.innerHTML='<option value="">No students found for this class</option>';
     } else {
-      studentList.forEach((s,i)=>{
+      studentList.forEach(s=>{
         const opt=document.createElement('option');
-        opt.value=i; opt.textContent=s.nickname;
+        opt.value=s.id; opt.textContent=s.nickname;
         selStudent.appendChild(opt);
       });
       selStudent.disabled=false;
@@ -469,87 +521,150 @@ async function onClassChange(){
     loginErr.textContent='⚠️ Could not load student list. Please check your connection or ask your teacher.';
     loginErr.style.display='block';
     selStudent.innerHTML='<option value="">— Could not load —</option>';
+  }finally{
+    loginLoad.style.display='none';
   }
-  loginLoad.style.display='none';
 }
 
 function onStudentChange(){
-  const idx=document.getElementById('selStudent').value;
+  const id=document.getElementById('selStudent').value;
+  pendingStudent=null;
   document.getElementById('confirmBox').style.display='none';
   document.getElementById('dobError').style.display='none';
   document.getElementById('inputDob').value='';
-  if(idx===''){document.getElementById('dobBox').style.display='none';return;}
+  if(id===''){document.getElementById('dobBox').style.display='none';return;}
   document.getElementById('dobBox').style.display='block';
   document.getElementById('inputDob').focus();
   setStep(5);
 }
 
 function onDobInput(){
-  const idx=document.getElementById('selStudent').value;
-  if(idx==='') return;
-  let val=document.getElementById('inputDob').value.replace(/\D/g,'');
-  document.getElementById('inputDob').value=val;
+  const id=document.getElementById('selStudent').value;
+  if(id==='') return;
+  const input=document.getElementById('inputDob');
+  const val=input.value.replace(/\D/g,'');
+  input.value=val;
   document.getElementById('dobError').style.display='none';
-  if(val.length===6) verifyDob(val,parseInt(idx));
+  if(val.length===6) verifyDob(val);
 }
 
-function verifyDob(entered,idx){
-  const s=studentList[idx];
-  const stored=(s.dob||'').replace(/\D/g,'');
-  if(entered===stored){
-    const yearLabel=document.getElementById('selYear').value;
-    document.getElementById('cfFullName').textContent=s.full_name;
-    document.getElementById('cfNickname').textContent=s.nickname;
-    document.getElementById('cfEmail').textContent=s.email;
-    document.getElementById('cfCampus').textContent=document.getElementById('selCampus').value;
-    document.getElementById('cfClass').textContent=document.getElementById('selClass').value;
-    document.getElementById('cfYear').textContent=yearLabel;
-    document.getElementById('confirmBox').style.display='block';
-  } else {
-    document.getElementById('dobError').style.display='block';
-    document.getElementById('inputDob').value='';
-    document.getElementById('confirmBox').style.display='none';
+function dobFail(msg){
+  const err=document.getElementById('dobError');
+  err.textContent='⚠️ '+msg;
+  err.style.display='block';
+  document.getElementById('inputDob').value='';
+  document.getElementById('confirmBox').style.display='none';
+}
+
+async function verifyDob(dob){
+  if(verifying) return;
+  verifying=true;
+  const input=document.getElementById('inputDob');
+  const checking=document.getElementById('dobChecking');
+  input.disabled=true; checking.style.display='block';
+  let ok=false;
+  try{
+    const r=await fetch(API,{method:'POST',body:JSON.stringify({
+      action:'login',
+      campus:document.getElementById('selCampus').value,
+      cls:document.getElementById('selClass').value,
+      id:Number(document.getElementById('selStudent').value),
+      dob:dob
+    })});
+    const data=await r.json();
+    if(data.status==='ok'){
+      ok=true;
+      pendingStudent=data.student;
+      document.getElementById('cfFullName').textContent=pendingStudent.full_name;
+      document.getElementById('cfNickname').textContent=pendingStudent.nickname;
+      document.getElementById('cfEmail').textContent=pendingStudent.email;
+      document.getElementById('cfCampus').textContent=pendingStudent.campus;
+      document.getElementById('cfClass').textContent=pendingStudent.class;
+      document.getElementById('cfYear').textContent=document.getElementById('selYear').value;
+      document.getElementById('confirmBox').style.display='block';
+    } else if(data.status==='nomatch'){
+      dobFail('Date of birth does not match.'+(data.remaining>0?` ${data.remaining} ${data.remaining===1?'try':'tries'} left.`:''));
+    } else {
+      dobFail(data.message||'Something went wrong. Please try again.');
+    }
+  }catch(e){
+    dobFail('Could not check your date of birth. Please check your connection and try again.');
+  }finally{
+    checking.style.display='none';
+    input.disabled=false;
+    verifying=false;
+    if(!ok) input.focus();
   }
 }
 
 function confirmLogin(){
-  const idx=document.getElementById('selStudent').value;
-  if(idx===''){showToast('Please select your name.');return;}
-  const s=studentList[parseInt(idx)];
-  const yearLabel=document.getElementById('selYear').value;
-  const yg=YEAR_GROUPS.find(y=>y.label===yearLabel);
-  student={
-    full_name:s.full_name, nickname:s.nickname, email:s.email,
-    campus:document.getElementById('selCampus').value,
-    class:document.getElementById('selClass').value,
-    year:yearLabel, course:yg.course
-  };
+  if(!pendingStudent){showToast('Please enter your date of birth.');return;}
+  const yg=YEAR_GROUPS.find(y=>y.label===document.getElementById('selYear').value);
+  student=Object.assign({}, pendingStudent, {year:yg.label, course:yg.course});
+  saveLogin(student);
+  afterLogin();
+}
+
+function afterLogin(){
   document.getElementById('barNickname').textContent='👤 '+student.nickname;
   document.getElementById('barCampus').textContent='🏫 '+student.campus;
   document.getElementById('barClass').textContent=student.class;
   document.getElementById('barYear').textContent=student.year;
   document.getElementById('studentBar').classList.add('visible');
-  document.getElementById('catTitle').textContent=student.year+' — '+student.course;
-  showScreen('screenCatalogue');
-  if(!catalogue.length) loadCatalogue(); else renderCatalogue();
+  if(returnTo){
+    document.getElementById('returnMsg').textContent=
+      `Logged in as ${student.nickname} (${student.class}). Your progress on the activity will now be saved.`;
+    showScreen('screenReturn');
+  } else {
+    openCatalogue();
+  }
+}
+
+function goBack(){
+  const url=returnTo;
+  returnTo=null;
+  // If the activity opened this tab, close it — the activity page notices the login by itself.
+  if(window.opener && !window.opener.closed){ try{ window.close(); }catch(e){} }
+  setTimeout(()=>{ location.href=url; }, 300);
 }
 
 // ═══════════════════════════════════════════════════════
 // CATALOGUE
 // ═══════════════════════════════════════════════════════
+function openCatalogue(){
+  document.getElementById('catTitle').textContent=student.year+' — '+student.course;
+  showScreen('screenCatalogue');
+  if(catalogueCourse!==student.course){
+    catalogue=[];
+    document.getElementById('catalogueList').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading quizzes…</p></div>';
+    loadCatalogue();
+  } else {
+    renderCatalogue();
+    openDeepQuiz();
+  }
+}
+
 async function loadCatalogue(){
+  const course=student.course;
   try{
-    const url=CATALOGUES[student.course];
-    const r=await fetch(url);
+    const r=await fetch(CATALOGUES[course]);
     const rows=parseCSV(await r.text());
-    // Normalise: A Level sheet uses 'unit_title' instead of 'topic'
     catalogue=rows
       .filter(q=>q.visible==='TRUE'&&q.quiz_title)
       .map(q=>({...q, topic: q.topic||q.unit_title||''}));
+    catalogueCourse=course;
     renderCatalogue();
+    openDeepQuiz();
   }catch(e){
     document.getElementById('catalogueList').innerHTML='<div class="error-box">⚠️ Could not load quiz catalogue. Please check your connection.</div>';
   }
+}
+
+function openDeepQuiz(){
+  if(!deepQuiz) return;
+  const id=deepQuiz; deepQuiz=null;
+  if(catalogue.some(q=>q.quiz_id===id)) selectQuiz(id);
+  else showToast('That quiz is not open yet — choose another below.');
 }
 
 function renderCatalogue(){
@@ -558,7 +673,8 @@ function renderCatalogue(){
     if(!topics[q.topic]) topics[q.topic]=[];
     topics[q.topic].push(q);
   });
-  const done=JSON.parse(localStorage.getItem('sisb_'+student.email)||'{}');
+  let done={};
+  try{ done=JSON.parse(localStorage.getItem('sisb_'+student.email)||'{}'); }catch(e){}
   let html='';
   Object.entries(topics).forEach(([topic,quizzes])=>{
     const doneCt=quizzes.filter(q=>done[q.quiz_id]!==undefined).length;
@@ -642,16 +758,18 @@ function renderQuestion(){
   const letters=['A','B','C','D'];
   document.getElementById('optionsContainer').innerHTML=
     shuffledOptions[currentQ].map((opt,i)=>
-      `<div class="option" id="opt${i}" onclick="selectAnswer(${i},'${opt.letter}','${q.correct_answer}')">
+      `<div class="option" id="opt${i}" onclick="selectAnswer(${i})">
         <div class="option-letter">${letters[i]}</div><span>${opt.text}</span>
       </div>`
     ).join('');
 }
 
-function selectAnswer(idx,letter,correct){
+function selectAnswer(idx){
   const opts=document.querySelectorAll('.option');
   if(opts[0].classList.contains('disabled')) return;
   opts.forEach(o=>o.classList.add('disabled'));
+  const correct=String(questions[currentQ].correct_answer||'').trim().toUpperCase();
+  const letter=shuffledOptions[currentQ][idx].letter;
   const isCorrect=letter===correct;
   answers[currentQ]={chosen:letter,correct,isCorrect};
   shuffledOptions[currentQ].forEach((opt,i)=>{
@@ -674,9 +792,11 @@ function finishQuiz(){
   const total=questions.length;
   const pct=Math.round(correct/total*100);
   const key='sisb_'+student.email;
-  const done=JSON.parse(localStorage.getItem(key)||'{}');
-  done[currentQuiz.quiz_id]=pct;
-  localStorage.setItem(key,JSON.stringify(done));
+  try{
+    const done=JSON.parse(localStorage.getItem(key)||'{}');
+    done[currentQuiz.quiz_id]=pct;
+    localStorage.setItem(key,JSON.stringify(done));
+  }catch(e){}
   document.getElementById('scoreNum').textContent=`${correct}/${total}`;
   document.getElementById('progressBar').style.width='100%';
   let title,sub;
@@ -703,7 +823,7 @@ function finishQuiz(){
 
 async function submitResults(correct,total,pct){
   try{
-    await fetch(RESPONSE_WEBHOOK,{
+    await fetch(API,{
       method:'POST',mode:'no-cors',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
@@ -718,6 +838,17 @@ async function submitResults(correct,total,pct){
     });
   }catch(e){}
 }
+
+// ═══════════════════════════════════════════════════════
+// START — skip the login if this device already has one
+// ═══════════════════════════════════════════════════════
+(function init(){
+  const saved=loadLogin();
+  if(saved && saved.course){
+    student=saved;
+    afterLogin();
+  }
+})();
 </script>
 </body>
 </html>
