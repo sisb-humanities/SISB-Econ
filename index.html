@@ -336,6 +336,7 @@ const SITE_ORIGIN = 'https://sisb-humanities.github.io';
 let student={}, pendingStudent=null, studentList=[], catalogue=[], catalogueCourse='';
 let currentQuiz=null, questions=[], shuffledOptions=[], answers=[], currentQ=0;
 let verifying=false;
+let lastTopic=null;   // topic of the quiz just finished — opened automatically when the catalogue is redrawn
 
 const params=new URLSearchParams(location.search);
 let returnTo=safeReturn(params.get('return'));   // activity page that sent the student here
@@ -386,6 +387,9 @@ function shuffle(arr){
 }
 
 function showScreen(id){
+  // Always redraw the catalogue when it is shown, so quizzes completed
+  // since it was last drawn display their green score badge.
+  if(id==='screenCatalogue' && catalogue.length && catalogueCourse===student.course) renderCatalogue();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
@@ -673,20 +677,27 @@ function renderCatalogue(){
     if(!topics[q.topic]) topics[q.topic]=[];
     topics[q.topic].push(q);
   });
+  // Keep topics the student already had open, and open the one they just finished.
+  const openTopics=new Set(
+    [...document.querySelectorAll('#catalogueList .topic-header.open > span:first-child')].map(e=>e.textContent)
+  );
+  if(lastTopic) openTopics.add(lastTopic);
+  lastTopic=null;
   let done={};
   try{ done=JSON.parse(localStorage.getItem('sisb_'+student.email)||'{}'); }catch(e){}
   let html='';
   Object.entries(topics).forEach(([topic,quizzes])=>{
     const doneCt=quizzes.filter(q=>done[q.quiz_id]!==undefined).length;
+    const open=openTopics.has(topic)?' open':'';
     html+=`<div class="topic-section">
-      <div class="topic-header" onclick="toggleTopic(this)">
+      <div class="topic-header${open}" onclick="toggleTopic(this)">
         <span>${topic}</span>
         <span style="display:flex;align-items:center;gap:10px">
           ${doneCt?`<span style="font-size:11px;opacity:.8">${doneCt}/${quizzes.length} done</span>`:''}
           <span class="topic-arrow">▶</span>
         </span>
       </div>
-      <div class="topic-quizzes">`;
+      <div class="topic-quizzes${open}">`;
     quizzes.forEach(q=>{
       const pct=done[q.quiz_id];
       html+=`<div class="quiz-item" onclick="selectQuiz('${q.quiz_id}')">
@@ -797,6 +808,7 @@ function finishQuiz(){
     done[currentQuiz.quiz_id]=pct;
     localStorage.setItem(key,JSON.stringify(done));
   }catch(e){}
+  lastTopic=currentQuiz.topic;
   document.getElementById('scoreNum').textContent=`${correct}/${total}`;
   document.getElementById('progressBar').style.width='100%';
   let title,sub;
