@@ -635,9 +635,37 @@ function goBack(){
 // ═══════════════════════════════════════════════════════
 // CATALOGUE
 // ═══════════════════════════════════════════════════════
+// Pull the student's best scores from the results sheet so the green ticks
+// are the same on every device. Merged with this device's saved scores
+// (higher score wins). If the lookup fails the page just uses local scores.
+async function syncProgress(){
+  const em=student.email, course=student.course, campus=student.campus;
+  if(!em||!course||!campus) return;
+  try{
+    const r=await fetch(`${API}?action=progress&campus=${encodeURIComponent(campus)}&course=${encodeURIComponent(course)}&email=${encodeURIComponent(em)}`);
+    if(!r.ok) return;
+    const data=await r.json();
+    if(data.status!=='ok'||!data.done) return;
+    if(student.email!==em) return;   // student was changed while waiting
+    const key='sisb_'+em;
+    let local={};
+    try{ local=JSON.parse(localStorage.getItem(key)||'{}'); }catch(e){}
+    let changed=false;
+    Object.entries(data.done).forEach(([id,pct])=>{
+      if(local[id]===undefined||pct>local[id]){ local[id]=pct; changed=true; }
+    });
+    if(changed){ try{ localStorage.setItem(key,JSON.stringify(local)); }catch(e){} }
+    if(catalogue.length && catalogueCourse===course &&
+       document.getElementById('screenCatalogue').classList.contains('active')){
+      renderCatalogue();
+    }
+  }catch(e){}
+}
+
 function openCatalogue(){
   document.getElementById('catTitle').textContent=student.year+' — '+student.course;
   showScreen('screenCatalogue');
+  syncProgress();
   if(catalogueCourse!==student.course){
     catalogue=[];
     document.getElementById('catalogueList').innerHTML='<div class="loading"><div class="spinner"></div><p>Loading quizzes…</p></div>';
@@ -805,7 +833,8 @@ function finishQuiz(){
   const key='sisb_'+student.email;
   try{
     const done=JSON.parse(localStorage.getItem(key)||'{}');
-    done[currentQuiz.quiz_id]=pct;
+    const prev=done[currentQuiz.quiz_id];
+    done[currentQuiz.quiz_id]=prev===undefined?pct:Math.max(prev,pct);   // keep the best score
     localStorage.setItem(key,JSON.stringify(done));
   }catch(e){}
   lastTopic=currentQuiz.topic;
