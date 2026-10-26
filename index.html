@@ -126,6 +126,35 @@ select:disabled,input[type=tel]:disabled{background:#f5f7fa;color:#9aabb8;cursor
 .return-tick{width:64px;height:64px;border-radius:50%;background:#e6f9ee;color:#1a6b35;font-size:30px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
 .return-card{text-align:center}
 .return-card .btn-full + .btn-full{margin-top:10px}
+
+/* My progress */
+.prog-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.prog-stat{background:#f7fafd;border:2px solid #e8eef5;border-radius:10px;padding:12px;text-align:center}
+.prog-num{font-size:24px;font-weight:900;color:#002F6C;line-height:1.1}
+.prog-num.warn{color:#c2410c}
+.prog-num.ok{color:#1a6b35}
+.prog-label{font-size:11px;font-weight:700;color:#5a6a7a;margin-top:4px;text-transform:uppercase;letter-spacing:.4px}
+.prog-head{font-size:13px;font-weight:900;color:#002F6C;margin:18px 0 8px}
+.todo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:9px;border:2px solid #e8eef5;margin-bottom:6px;background:#fff}
+.todo.over{border-color:#f5c2b5;background:#fff7f4}
+.todo-title{flex:1 1 180px;font-size:13px;font-weight:700;color:#002F6C}
+.todo-btns{display:flex;gap:6px;flex-wrap:wrap}
+.mini-btn{font-family:'Lato',sans-serif;font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.mini-quiz{background:#008BCC;color:#fff}
+.mini-act{background:#FF8F1C;color:#fff}
+.mini-btn:hover{opacity:.88}
+.uptodate{background:#e6f9ee;color:#1a6b35;border-radius:10px;padding:14px;font-size:14px;font-weight:700;text-align:center}
+.prog-note{font-size:12px;color:#7a8fa0;margin-top:10px}
+.chip{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
+.chip-over{background:#fde2dc;color:#a0300f}
+.chip-today{background:#fff1d6;color:#8a5a00}
+.chip-due{background:#e0edf6;color:#002F6C}
+.quiz-item-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.quiz-item{gap:10px;flex-wrap:wrap}
+.badge-act{color:#a04a00;background:#fff1e3;text-decoration:none}
+.badge-act:hover{background:#ffe2c4}
+.badge-act-done{color:#37C563;background:#e6f9ee;text-decoration:none}
+@media (max-width:520px){.prog-num{font-size:20px}.prog-stat{padding:10px 6px}}
 </style>
 </head>
 <body>
@@ -238,9 +267,14 @@ select:disabled,input[type=tel]:disabled{background:#f5f7fa;color:#9aabb8;cursor
 
 <!-- ═══ SCREEN 2: Catalogue ═══ -->
 <div class="screen" id="screenCatalogue">
+  <div class="card" id="progressCard" style="display:none">
+    <h2>My progress</h2>
+    <p class="subtitle" id="progressSub">What your teacher has set, and what you still need to do.</p>
+    <div id="progressBody"></div>
+  </div>
   <div class="card">
     <h2 id="catTitle"></h2>
-    <p class="subtitle">Choose a topic, watch the video, then complete the quiz.</p>
+    <p class="subtitle">Choose a topic, watch the video, then complete the quiz and the interactive activity.</p>
     <div id="catalogueList">
       <div class="loading"><div class="spinner"></div><p>Loading quizzes…</p></div>
     </div>
@@ -318,7 +352,7 @@ const CATALOGUES = {
 };
 
 const YEAR_GROUPS = [
-  { label:'IGCSE Year 1',  course:'IGCSE Economics',   classes:['G9B','G9G','G9M','G9S'] },
+  { label:'IGCSE Year 1',  course:'IGCSE Economics',   classes:['G9B','G9C','G9G','G9M','G9S'] },
   { label:'IGCSE Year 2',  course:'IGCSE Economics',   classes:['G10L','G10M','G10P','G10VG'] },
   { label:'AS Level',      course:'A Level Economics',  classes:['G11A','G11P','G11S','G11V'] },
   { label:'A Level',       course:'A Level Economics',  classes:['G12G','G12M','G12P','G12U'] }
@@ -329,6 +363,11 @@ const YEAR_GROUPS = [
 const LOGIN_KEY  = 'sisb_econ_student';
 const LOGIN_DAYS = 120;
 const SITE_ORIGIN = 'https://sisb-humanities.github.io';
+
+// Interactive activities count towards "due" only for topics due on or after
+// the day each activity site started saving progress. Must match the
+// ACTIVITY_EXPECTED_FROM setting in the Apps Script.
+const ACTIVITY_EXPECTED_FROM = { 'IGCSE Economics':'2026-10-27', 'A Level Economics':'2026-10-13' };
 
 // ═══════════════════════════════════════════════════════
 // STATE
@@ -378,6 +417,42 @@ function toCSVUrl(url){
 function ytEmbed(url){
   const m=(url||'').match(/(?:youtu\.be\/|v=|v\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
   return m?`https://www.youtube.com/embed/${m[1]}`:url;
+}
+
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// "2.3", "2.03", "2.3 Supply" -> "2.3". Titles come first because the sheet stores 2.10 as 2.1.
+function topicCode(v){
+  const m=String(v||'').match(/(\d+)\.(\d+)/);
+  return m?m[1]+'.'+Number(m[2]):'';
+}
+
+// Due dates arrive as the sheet shows them: 27/10/2026, 2026-10-27 or 27 Oct 2026.
+function parseDue(v){
+  const s=String(v||'').trim();
+  if(!s) return null;
+  let m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){
+    let d=+m[1], mo=+m[2], y=+m[3];
+    if(y<100) y+=2000;
+    if(mo>12 && d<=12){ const t=d; d=mo; mo=t; }   // sheet set to US date order
+    return new Date(y,mo-1,d);
+  }
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(+m[1],m[2]-1,+m[3]);
+  const d=new Date(s);
+  return isNaN(d)?null:new Date(d.getFullYear(),d.getMonth(),d.getDate());
+}
+
+function fmtDue(d){
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+
+function startOfToday(){
+  const n=new Date();
+  return new Date(n.getFullYear(),n.getMonth(),n.getDate());
 }
 
 function shuffle(arr){
@@ -647,6 +722,9 @@ async function syncProgress(){
     const data=await r.json();
     if(data.status!=='ok'||!data.done) return;
     if(student.email!==em) return;   // student was changed while waiting
+    if(data.activities){
+      try{ localStorage.setItem('sisb_act_'+em,JSON.stringify(data.activities)); }catch(e){}
+    }
     const key='sisb_'+em;
     let local={};
     try{ local=JSON.parse(localStorage.getItem(key)||'{}'); }catch(e){}
@@ -683,13 +761,25 @@ async function loadCatalogue(){
     const rows=parseCSV(await r.text());
     catalogue=rows
       .filter(q=>q.visible==='TRUE'&&q.quiz_title)
-      .map(q=>({...q, topic: q.topic||q.unit_title||''}));
+      .map(q=>({...q,
+        topic: q.topic||q.unit_title||'',
+        code: topicCode(q.quiz_title)||topicCode(q.quiz_id),
+        due: parseDue(q.due_date),
+        activity: safeActivity(q.activity_url),
+        yearGroup: (q.year_group||'').trim()
+      }));
     catalogueCourse=course;
     renderCatalogue();
     openDeepQuiz();
   }catch(e){
     document.getElementById('catalogueList').innerHTML='<div class="error-box">⚠️ Could not load quiz catalogue. Please check your connection.</div>';
   }
+}
+
+// Only links to the SISB activity sites are opened.
+function safeActivity(u){
+  if(!u) return '';
+  try{ const x=new URL(u); return x.origin===SITE_ORIGIN ? x.href : ''; }catch(e){ return ''; }
 }
 
 function openDeepQuiz(){
@@ -699,7 +789,95 @@ function openDeepQuiz(){
   else showToast('That quiz is not open yet — choose another below.');
 }
 
+// What one catalogue row means for this student.
+function itemState(q,done,acts){
+  const mine=q.yearGroup===student.year && !!q.due;
+  const today=startOfToday();
+  const actFrom=new Date((ACTIVITY_EXPECTED_FROM[student.course]||'2100-01-01')+'T00:00:00');
+  const quizDone=done[q.quiz_id]!==undefined;
+  const actDone=!!(q.code && acts[q.code] && acts[q.code].length);
+  const expectAct=!!(q.activity && mine && q.due>=actFrom);
+  return {
+    mine, quizDone, actDone, expectAct,
+    isDue: mine && q.due<=today,               // due today or earlier
+    overdue: mine && q.due<today,
+    complete: quizDone && (!expectAct || actDone),
+    pct: done[q.quiz_id]
+  };
+}
+
+function readDone(){
+  try{ return JSON.parse(localStorage.getItem('sisb_'+student.email)||'{}'); }catch(e){ return {}; }
+}
+function readActs(){
+  try{ return JSON.parse(localStorage.getItem('sisb_act_'+student.email)||'{}'); }catch(e){ return {}; }
+}
+
+function dueChip(q,st){
+  if(!st.mine) return '';
+  if(st.complete) return '';
+  if(st.overdue) return `<span class="chip chip-over">Overdue · ${fmtDue(q.due)}</span>`;
+  if(st.isDue)   return `<span class="chip chip-today">Due today</span>`;
+  return `<span class="chip chip-due">Due ${fmtDue(q.due)}</span>`;
+}
+
+function todoRow(q,st){
+  const btns=[];
+  if(!st.quizDone) btns.push(`<button class="mini-btn mini-quiz" onclick="selectQuiz('${esc(q.quiz_id)}')">▶ Video &amp; quiz</button>`);
+  if(st.expectAct && !st.actDone) btns.push(`<a class="mini-btn mini-act" href="${esc(q.activity)}" target="_blank" rel="noopener">✏️ Activity</a>`);
+  return `<div class="todo${st.overdue?' over':''}">
+    <span class="todo-title">${esc(q.quiz_title)}</span>
+    ${dueChip(q,st)}
+    <span class="todo-btns">${btns.join('')}</span>
+  </div>`;
+}
+
+function renderProgress(){
+  const card=document.getElementById('progressCard');
+  const body=document.getElementById('progressBody');
+  const done=readDone(), acts=readActs();
+  const mine=catalogue.filter(q=>q.yearGroup===student.year && q.due)
+                      .sort((a,b)=>a.due-b.due);
+  if(!mine.length){ card.style.display='none'; return; }
+  card.style.display='block';
+
+  let dueItems=0, doneItems=0;
+  const todo=[], coming=[], best=[];
+  mine.forEach(q=>{
+    const st=itemState(q,done,acts);
+    if(st.isDue){
+      dueItems+=1+(st.expectAct?1:0);
+      doneItems+=(st.quizDone?1:0)+(st.expectAct&&st.actDone?1:0);
+      if(st.quizDone) best.push(st.pct);
+      if(!st.complete) todo.push([q,st]);
+    } else if(!st.complete){
+      coming.push([q,st]);
+    }
+  });
+  const left=dueItems-doneItems;
+  const avg=best.length?Math.round(best.reduce((a,b)=>a+b,0)/best.length):null;
+
+  let html=`<div class="prog-stats">
+    <div class="prog-stat"><div class="prog-num${dueItems&&!left?' ok':''}">${doneItems}<span style="font-size:14px;color:#7a8fa0"> / ${dueItems}</span></div><div class="prog-label">Done so far</div></div>
+    <div class="prog-stat"><div class="prog-num${left?' warn':' ok'}">${left}</div><div class="prog-label">Still to do</div></div>
+    <div class="prog-stat"><div class="prog-num">${avg===null?'–':avg+'%'}</div><div class="prog-label">Quiz average</div></div>
+  </div>
+  <div class="progress-bar-wrap" style="margin-bottom:6px"><div class="progress-bar" style="width:${dueItems?Math.round(doneItems/dueItems*100):0}%"></div></div>`;
+
+  if(todo.length){
+    html+=`<div class="prog-head">Still to do</div>`+todo.map(([q,st])=>todoRow(q,st)).join('');
+  } else if(dueItems){
+    html+=`<div class="uptodate" style="margin-top:14px">🎉 You're up to date. Nice work!</div>`;
+  }
+  if(coming.length){
+    html+=`<div class="prog-head">Coming up</div>`+coming.slice(0,4).map(([q,st])=>todoRow(q,st)).join('');
+  }
+  html+=`<p class="prog-note">Activities finished on another device can take a minute to appear here. Reopen this page to refresh.</p>`;
+  body.innerHTML=html;
+}
+
 function renderCatalogue(){
+  renderProgress();
   const topics={};
   catalogue.forEach(q=>{
     if(!topics[q.topic]) topics[q.topic]=[];
@@ -711,15 +889,14 @@ function renderCatalogue(){
   );
   if(lastTopic) openTopics.add(lastTopic);
   lastTopic=null;
-  let done={};
-  try{ done=JSON.parse(localStorage.getItem('sisb_'+student.email)||'{}'); }catch(e){}
+  const done=readDone(), acts=readActs();
   let html='';
   Object.entries(topics).forEach(([topic,quizzes])=>{
     const doneCt=quizzes.filter(q=>done[q.quiz_id]!==undefined).length;
     const open=openTopics.has(topic)?' open':'';
     html+=`<div class="topic-section">
       <div class="topic-header${open}" onclick="toggleTopic(this)">
-        <span>${topic}</span>
+        <span>${esc(topic)}</span>
         <span style="display:flex;align-items:center;gap:10px">
           ${doneCt?`<span style="font-size:11px;opacity:.8">${doneCt}/${quizzes.length} done</span>`:''}
           <span class="topic-arrow">▶</span>
@@ -727,12 +904,17 @@ function renderCatalogue(){
       </div>
       <div class="topic-quizzes${open}">`;
     quizzes.forEach(q=>{
-      const pct=done[q.quiz_id];
-      html+=`<div class="quiz-item" onclick="selectQuiz('${q.quiz_id}')">
-        <span class="quiz-item-title">${q.quiz_title}</span>
-        ${pct!==undefined
-          ?`<span class="quiz-item-badge badge-done">✓ ${pct}%</span>`
-          :`<span class="quiz-item-badge badge-new">Start</span>`}
+      const st=itemState(q,done,acts);
+      const quizBadge=st.quizDone
+        ?`<span class="quiz-item-badge badge-done">✓ Quiz ${st.pct}%</span>`
+        :`<span class="quiz-item-badge badge-new">Quiz</span>`;
+      const actBadge=!q.activity?''
+        :st.actDone
+          ?`<a class="quiz-item-badge badge-act-done" href="${esc(q.activity)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">✓ Activity</a>`
+          :`<a class="quiz-item-badge badge-act" href="${esc(q.activity)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Activity ↗</a>`;
+      html+=`<div class="quiz-item" onclick="selectQuiz('${esc(q.quiz_id)}')">
+        <span class="quiz-item-title">${esc(q.quiz_title)}</span>
+        <span class="quiz-item-badges">${dueChip(q,st)}${quizBadge}${actBadge}</span>
       </div>`;
     });
     html+=`</div></div>`;
@@ -883,6 +1065,18 @@ async function submitResults(correct,total,pct){
 // ═══════════════════════════════════════════════════════
 // START — skip the login if this device already has one
 // ═══════════════════════════════════════════════════════
+// Coming back from an activity tab: pull the latest progress.
+let lastSync=0;
+function refreshIfBack(){
+  if(document.visibilityState!=='visible' || !student.email) return;
+  if(!document.getElementById('screenCatalogue').classList.contains('active')) return;
+  if(Date.now()-lastSync<15000) return;
+  lastSync=Date.now();
+  syncProgress();
+}
+document.addEventListener('visibilitychange',refreshIfBack);
+window.addEventListener('focus',refreshIfBack);
+
 (function init(){
   const saved=loadLogin();
   if(saved && saved.course){
