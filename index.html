@@ -145,6 +145,10 @@ select:disabled,input[type=tel]:disabled{background:#f5f7fa;color:#9aabb8;cursor
 .mini-btn:hover{opacity:.88}
 .uptodate{background:#e6f9ee;color:#1a6b35;border-radius:10px;padding:14px;font-size:14px;font-weight:700;text-align:center}
 .prog-note{font-size:12px;color:#7a8fa0;margin-top:10px}
+.save-status{margin:0 auto 18px;max-width:420px;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;text-align:center}
+.save-status.saving{background:#eef4fa;color:#456080}
+.save-status.ok{background:#e6f9ee;color:#1a6b35}
+.save-status.fail{background:#fff3e0;color:#9a4b00}
 .chip{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:700;white-space:nowrap}
 .chip-over{background:#fde2dc;color:#a0300f}
 .chip-today{background:#fff1d6;color:#8a5a00}
@@ -330,6 +334,7 @@ select:disabled,input[type=tel]:disabled{background:#f5f7fa;color:#9aabb8;cursor
     </div>
     <div class="result-title" id="resultTitle"></div>
     <div class="result-sub" id="resultSub"></div>
+    <div id="saveStatus" class="save-status" style="display:none"></div>
     <div class="btn-row" style="justify-content:center;margin-bottom:24px">
       <button class="btn btn-secondary" onclick="retakeQuiz()">↺ Retake Quiz</button>
       <button class="btn btn-primary" onclick="showScreen('screenCatalogue')">← All Quizzes</button>
@@ -743,6 +748,7 @@ async function syncProgress(){
 function openCatalogue(){
   document.getElementById('catTitle').textContent=student.year+' — '+student.course;
   showScreen('screenCatalogue');
+  flushPending();
   syncProgress();
   if(catalogueCourse!==student.course){
     catalogue=[];
@@ -841,28 +847,31 @@ function renderProgress(){
   if(!mine.length){ card.style.display='none'; return; }
   card.style.display='block';
 
-  let dueItems=0, doneItems=0;
+  let dueItems=0, dueDone=0, allItems=0, allDone=0, quizTotal=0, quizDoneN=0, actTotal=0, actDoneN=0;
   const todo=[], coming=[], best=[];
   mine.forEach(q=>{
     const st=itemState(q,done,acts);
+    const n=1+(st.expectAct?1:0), d=(st.quizDone?1:0)+(st.expectAct&&st.actDone?1:0);
+    allItems+=n; allDone+=d;
+    quizTotal+=1; if(st.quizDone) quizDoneN+=1;
+    if(st.expectAct){ actTotal+=1; if(st.actDone) actDoneN+=1; }
+    if(st.quizDone) best.push(st.pct);          // average counts every quiz done, due or not
     if(st.isDue){
-      dueItems+=1+(st.expectAct?1:0);
-      doneItems+=(st.quizDone?1:0)+(st.expectAct&&st.actDone?1:0);
-      if(st.quizDone) best.push(st.pct);
+      dueItems+=n; dueDone+=d;
       if(!st.complete) todo.push([q,st]);
     } else if(!st.complete){
       coming.push([q,st]);
     }
   });
-  const left=dueItems-doneItems;
+  const left=dueItems-dueDone;
   const avg=best.length?Math.round(best.reduce((a,b)=>a+b,0)/best.length):null;
 
   let html=`<div class="prog-stats">
-    <div class="prog-stat"><div class="prog-num${dueItems&&!left?' ok':''}">${doneItems}<span style="font-size:14px;color:#7a8fa0"> / ${dueItems}</span></div><div class="prog-label">Done so far</div></div>
-    <div class="prog-stat"><div class="prog-num${left?' warn':' ok'}">${left}</div><div class="prog-label">Still to do</div></div>
+    <div class="prog-stat"><div class="prog-num${quizTotal&&quizDoneN===quizTotal?' ok':''}">${quizDoneN}<span style="font-size:14px;color:#7a8fa0"> / ${quizTotal}</span></div><div class="prog-label">Quizzes done</div></div>
+    <div class="prog-stat"><div class="prog-num${actTotal&&actDoneN===actTotal?' ok':''}">${actTotal?actDoneN:'–'}${actTotal?`<span style="font-size:14px;color:#7a8fa0"> / ${actTotal}</span>`:''}</div><div class="prog-label">Activities done</div></div>
     <div class="prog-stat"><div class="prog-num">${avg===null?'–':avg+'%'}</div><div class="prog-label">Quiz average</div></div>
   </div>
-  <div class="progress-bar-wrap" style="margin-bottom:6px"><div class="progress-bar" style="width:${dueItems?Math.round(doneItems/dueItems*100):0}%"></div></div>`;
+  <div class="progress-bar-wrap" style="margin-bottom:6px"><div class="progress-bar" style="width:${allItems?Math.round(allDone/allItems*100):0}%"></div></div>`;
 
   if(todo.length){
     html+=`<div class="prog-head">Still to do</div>`+todo.map(([q,st])=>todoRow(q,st)).join('');
@@ -1044,22 +1053,103 @@ function finishQuiz(){
   submitResults(correct,total,pct);
 }
 
-async function submitResults(correct,total,pct){
+// ── Saving a score, with proof it arrived ─────────────────────────────
+// The browser cannot read the reply to a save, so after sending we ask the
+// results sheet for this student's scores and check the quiz is there. If it
+// is not, we send again; if it still is not, the score is kept on this device
+// and re-sent automatically next time the student opens the app.
+const PENDING_KEY='sisb_pending_quiz';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let flushing=false;
+
+function readPending(){ try{ return JSON.parse(localStorage.getItem(PENDING_KEY)||'[]'); }catch(e){ return []; } }
+function writePending(a){
+  try{ if(a.length) localStorage.setItem(PENDING_KEY,JSON.stringify(a.slice(-40))); else localStorage.removeItem(PENDING_KEY); }catch(e){}
+}
+function addPending(p){ const a=readPending(); if(!a.some(x=>x.attempt_id===p.attempt_id)){ a.push(p); writePending(a); } }
+function removePending(id){ writePending(readPending().filter(x=>x.attempt_id!==id)); }
+
+function setSaveStatus(kind,msg){
+  const el=document.getElementById('saveStatus');
+  if(!el) return;
+  el.style.display=msg?'block':'none';
+  el.className='save-status '+kind;
+  el.textContent=msg||'';
+}
+
+function postResult(p){
+  return fetch(API,{
+    method:'POST',mode:'no-cors',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(p)
+  }).then(()=>true,()=>false);
+}
+
+// Best score per quiz as the sheet holds it now, or null if it could not be asked.
+async function fetchSheetScores(p){
   try{
-    await fetch(API,{
-      method:'POST',mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        nickname:student.nickname, full_name:student.full_name,
-        email:student.email, course:student.course,
-        campus:student.campus, class:student.class,
-        year:student.year, quiz_id:currentQuiz.quiz_id,
-        quiz_title:currentQuiz.quiz_title, topic:currentQuiz.topic,
-        score:correct, total, percentage:pct,
-        timestamp:new Date().toISOString()
-      })
-    });
-  }catch(e){}
+    const r=await fetch(`${API}?action=progress&campus=${encodeURIComponent(p.campus)}&course=${encodeURIComponent(p.course)}&email=${encodeURIComponent(p.email)}&t=${Date.now()}`);
+    if(!r.ok) return null;
+    const d=await r.json();
+    return d&&d.status==='ok'&&d.done?d.done:null;
+  }catch(e){ return null; }
+}
+
+// Waits, then looks for the score in the sheet. true = it is there.
+async function confirmSaved(p,delays){
+  for(const ms of delays){
+    await sleep(ms);
+    const done=await fetchSheetScores(p);
+    if(done && done[p.quiz_id]!==undefined && done[p.quiz_id]>=p.percentage) return true;
+  }
+  return false;
+}
+
+async function submitResults(correct,total,pct){
+  const p={
+    nickname:student.nickname, full_name:student.full_name,
+    email:student.email, course:student.course,
+    campus:student.campus, class:student.class,
+    year:student.year, quiz_id:currentQuiz.quiz_id,
+    quiz_title:currentQuiz.quiz_title, topic:currentQuiz.topic,
+    score:correct, total, percentage:pct,
+    timestamp:new Date().toISOString(),
+    attempt_id:Date.now()+'-'+Math.random().toString(36).slice(2,8)
+  };
+  addPending(p);                       // kept until the sheet confirms it
+  setSaveStatus('saving','Saving your score…');
+  await postResult(p);
+  let ok=await confirmSaved(p,[3000,5000]);
+  if(!ok){
+    setSaveStatus('saving','Still saving… please keep this page open.');
+    await postResult(p);
+    ok=await confirmSaved(p,[4000,8000]);
+  }
+  if(ok){
+    removePending(p.attempt_id);
+    setSaveStatus('ok','✓ Score saved');
+    syncProgress();
+  } else {
+    setSaveStatus('fail','⚠️ Your score is not saved yet. Check your internet. It will be sent automatically next time you open this page.');
+  }
+}
+
+// Sends any scores that were not confirmed earlier (closed tab, lost wifi).
+async function flushPending(){
+  if(flushing || !student || !student.email) return;
+  const mine=readPending().filter(p=>p.email===student.email);
+  if(!mine.length) return;
+  flushing=true;
+  try{
+    for(const p of mine){
+      const done=await fetchSheetScores(p);
+      if(done===null) continue;                         // offline: try again later
+      if(done[p.quiz_id]!==undefined && done[p.quiz_id]>=p.percentage){ removePending(p.attempt_id); continue; }
+      await postResult(p);
+      if(await confirmSaved(p,[3000,6000])) removePending(p.attempt_id);
+    }
+  } finally { flushing=false; }
+  syncProgress();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1072,6 +1162,7 @@ function refreshIfBack(){
   if(!document.getElementById('screenCatalogue').classList.contains('active')) return;
   if(Date.now()-lastSync<15000) return;
   lastSync=Date.now();
+  flushPending();
   syncProgress();
 }
 document.addEventListener('visibilitychange',refreshIfBack);
